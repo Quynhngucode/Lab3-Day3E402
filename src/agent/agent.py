@@ -16,7 +16,7 @@ from src.core.llm_provider import LLMProvider
 from src.telemetry.logger import logger
 
 # ─────────────────────────────────────────────────────────────────────────────
-# MOCK TOOLS (Cinema Ticket Booking)
+# MOCK TOOLS (Cinema Ticket Booking - Unified Database)
 # ─────────────────────────────────────────────────────────────────────────────
 
 def check_movie_schedule(movie_name: str, cinema_name: str, date: str) -> dict:
@@ -25,17 +25,29 @@ def check_movie_schedule(movie_name: str, cinema_name: str, date: str) -> dict:
     movie / cinema / date combination.
     """
     movies = {
-        "default": {
-            "showtimes": ["10:00", "13:00", "16:30", "19:45", "22:00"],
-            "base_price": 85_000,
+        "doraemon": {
+            "showtimes": ["09:00", "11:30", "14:00", "16:30"],
+            "base_price": 75_000,
         },
         "avengers": {
             "showtimes": ["11:00", "14:30", "18:00", "21:30"],
             "base_price": 90_000,
         },
-        "doraemon": {
-            "showtimes": ["09:00", "11:30", "14:00", "16:30"],
-            "base_price": 75_000,
+        "dune": {
+            "showtimes": ["14:00", "17:30", "20:30"],
+            "base_price": 100_000,
+        },
+        "batman": {
+            "showtimes": ["13:00", "16:00", "19:00", "22:00"],
+            "base_price": 80_000,
+        },
+        "spider": {
+            "showtimes": ["10:30", "15:00", "18:00"],
+            "base_price": 110_000,
+        },
+        "default": {
+            "showtimes": ["10:00", "13:00", "16:30", "19:45", "22:00"],
+            "base_price": 85_000,
         },
     }
 
@@ -63,30 +75,59 @@ def calculate_total_price(
     quantity: int,
     seat_type: str,
     discount_code: str = "",
+    concession: str = "",
 ) -> dict:
     """
     Computes the final ticket cost.
     Seat multipliers: VIP × 1.5, Premium × 1.3, Standard × 1.0
-    Discount codes: SUMMER20 → 20%, STUDENT10 → 10%, AI20K → 15%
+    Discount codes: SUMMER20 → 20%, STUDENT10 → 10%, AI20K → 15%, CGV30 → 30%, STUDENT → 15%
+    Fixed discount: HELLOSUMMER → -20,000 VND
+    Concessions: popcorn_combo_1 → 50,000 VND, popcorn_combo_2 → 80,000 VND
     """
     multipliers = {
         "vip": 1.5,
         "premium": 1.3,
         "standard": 1.0,
     }
+    
+    # Percentage discounts
     discounts = {
         "SUMMER20": 0.20,
         "STUDENT10": 0.10,
         "AI20K": 0.15,
+        "CGV30": 0.30,
+        "STUDENT": 0.15,
+    }
+    
+    # Concessions
+    concessions_map = {
+        "popcorn_combo_1": 50_000,
+        "popcorn_combo_2": 80_000,
     }
 
     seat_key = seat_type.lower()
     multiplier = multipliers.get(seat_key, 1.0)
 
     subtotal = base_price * multiplier * quantity
-    discount_rate = discounts.get(discount_code.upper(), 0.0)
-    discount_amount = subtotal * discount_rate
-    total = subtotal - discount_amount
+    
+    # Calculate discount
+    discount_rate = 0.0
+    discount_amount = 0.0
+    fixed_discount = 0.0
+    
+    discount_code_upper = discount_code.upper()
+    if discount_code_upper in discounts:
+        discount_rate = discounts[discount_code_upper]
+        discount_amount = subtotal * discount_rate
+    elif discount_code_upper == "HELLOSUMMER":
+        fixed_discount = 20_000
+        discount_amount = fixed_discount
+        
+    concession_cost = 0.0
+    if concession:
+        concession_cost = concessions_map.get(concession.lower(), 0.0)
+
+    total = subtotal - discount_amount + concession_cost
 
     return {
         "status": "success",
@@ -96,8 +137,10 @@ def calculate_total_price(
         "quantity": quantity,
         "subtotal": subtotal,
         "discount_code": discount_code or "none",
-        "discount_rate": f"{int(discount_rate * 100)}%",
+        "discount_rate": f"{int(discount_rate * 100)}%" if discount_rate > 0 else "0%",
         "discount_amount": discount_amount,
+        "concession": concession or "none",
+        "concession_cost": concession_cost,
         "total_price": total,
         "currency": "VND",
         "formatted_total": f"{total:,.0f} VND",
