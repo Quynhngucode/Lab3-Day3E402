@@ -50,6 +50,19 @@ def execute_agent_chat(message: str, provider_type: str, custom_api_key: str = "
         if provider_type == "local":
             # Use local Phi-3
             provider = get_local_provider()
+        elif provider_type == "openai" or provider_type == "mimo":
+            # Use OpenAI/Mimo API
+            api_key = custom_api_key.strip() if custom_api_key else os.getenv("OPENAI_API_KEY", "")
+            if not api_key:
+                return {
+                    "final_answer": "Lỗi: Không tìm thấy OpenAI/Mimo API Key. Vui lòng kiểm tra file .env hoặc bảng điều khiển.",
+                    "steps": [],
+                    "metrics": {"total_steps": 0, "latency_ms": 0, "total_tokens": 0},
+                    "success": False
+                }
+            model_name = os.getenv("DEFAULT_MODEL", "mimo-v2.5-pro")
+            from src.core.openai_provider import OpenAIProvider
+            provider = OpenAIProvider(model_name=model_name, api_key=api_key)
         else:
             # Use Gemini Cloud API
             # Priority: 1. Custom key entered in UI, 2. Env variable
