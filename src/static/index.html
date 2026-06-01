@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Booking AI Agent - ReAct & Memory</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --panel-bg: rgba(17, 25, 40, 0.75);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --primary-glow: #00f2fe;
+            --secondary-glow: #4facfe;
+            --accent-gold: #f6d365;
+            --accent-red: #ff3366;
+            --accent-green: #00ff87;
+            --text-color: #f3f4f6;
+            --text-muted: #9ca3af;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 10% 20%, rgba(79, 172, 254, 0.1) 0px, transparent 50%),
+                radial-gradient(at 90% 80%, rgba(0, 242, 254, 0.08) 0px, transparent 50%);
+            color: var(--text-color);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Header */
+        header {
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            backdrop-filter: blur(10px);
+            z-index: 10;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            font-size: 24px;
+            background: linear-gradient(135deg, var(--primary-glow), var(--secondary-glow));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700;
+        }
+
+        .logo-title {
+            font-size: 20px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-react {
+            background: rgba(0, 242, 254, 0.15);
+            border: 1px solid var(--primary-glow);
+            color: var(--primary-glow);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        /* App Layout */
+        .app-container {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 280px 1fr 340px;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        /* Sidebar Base */
+        .sidebar {
+            background: var(--panel-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            backdrop-filter: blur(20px);
+            min-height: 0;
+        }
+
+        .sidebar-left {
+            border-right: 1px solid var(--border-color);
+        }
+
+        .sidebar-right {
+            border-left: 1px solid var(--border-color);
+            border-right: none;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sidebar-header h2 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--primary-glow);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Memory Profile */
+        .profile-card {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .profile-field {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .profile-field .label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .profile-field .value {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .profile-field .value-vip {
+            color: var(--accent-gold);
+            font-weight: 600;
+        }
+
+        .voucher-tag {
+            display: inline-block;
+            background: rgba(246, 211, 101, 0.15);
+            border: 1px solid var(--accent-gold);
+            color: var(--accent-gold);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 6px;
+        }
+
+        .history-list {
+            margin-top: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .history-item {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 10px;
+            font-size: 12px;
+        }
+
+        .history-item .id {
+            color: var(--primary-glow);
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .history-item .details {
+            color: var(--text-muted);
+        }
+
+        /* Database Sidebar */
+        .db-section {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .movie-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .movie-card:hover {
+            border-color: var(--secondary-glow);
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .movie-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-color);
+            margin-bottom: 5px;
+        }
+
+        .movie-meta {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .showtime-pill {
+            display: inline-block;
+            background: rgba(79, 172, 254, 0.15);
+            border: 1px solid rgba(79, 172, 254, 0.3);
+            color: var(--secondary-glow);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+            margin-right: 4px;
+            margin-bottom: 4px;
+        }
+
+        /* Chat Workspace */
+        .chat-workspace {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            background: rgba(5, 7, 12, 0.3);
+            position: relative;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 25px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            min-height: 0;
+            scroll-behavior: smooth;
+        }
+
+        .chat-bubble {
+            max-width: 80%;
+            border-radius: 12px;
+            padding: 14px 18px;
+            line-height: 1.5;
+            font-size: 14.5px;
+            position: relative;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .chat-bubble-user {
+            align-self: flex-end;
+            background: linear-gradient(135deg, var(--secondary-glow), #2b5876);
+            color: #fff;
+            border-bottom-right-radius: 2px;
+            box-shadow: 0 4px 15px rgba(79, 172, 254, 0.2);
+        }
+
+        .chat-bubble-assistant {
+            align-self: flex-start;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            border-bottom-left-radius: 2px;
+        }
+
+        /* Trace Logs styling */
+        .trace-container {
+            margin-top: 10px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            width: 100%;
+        }
+
+        .trace-header {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 8px 12px;
+            font-size: 11px;
+            color: var(--primary-glow);
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .trace-header::after {
+            content: '▶';
+            font-size: 9px;
+            transition: transform 0.2s;
+        }
+
+        .trace-container:not(.collapsed) .trace-header::after {
+            transform: rotate(90deg);
+        }
+
+        .trace-body {
+            background: rgba(0, 0, 0, 0.65);
+            padding: 12px;
+            font-family: 'Fira Code', monospace;
+            font-size: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            border-top: 1px solid var(--border-color);
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .trace-container.collapsed .trace-body {
+            display: none;
+        }
+
+        .trace-step {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .trace-step .t-thought {
+            color: #b5e853;
+        }
+
+        .trace-step .t-action {
+            color: var(--primary-glow);
+            font-weight: 500;
+        }
+
+        .trace-step .t-observation {
+            color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.03);
+            padding: 6px;
+            border-radius: 4px;
+            font-size: 11.5px;
+            margin-top: 2px;
+            overflow-x: auto;
+        }
+
+        /* Input Controls */
+        .chat-input-area {
+            padding: 20px;
+            background: rgba(11, 15, 25, 0.9);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .chat-suggestions {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 5px;
+        }
+
+        .suggestion-chip {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 6px 14px;
+            font-size: 12px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+
+        .suggestion-chip:hover {
+            border-color: var(--primary-glow);
+            background: rgba(0, 242, 254, 0.05);
+            color: var(--primary-glow);
+        }
+
+        .input-row {
+            display: flex;
+            gap: 12px;
+        }
+
+        .chat-input {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 14px 18px;
+            color: #fff;
+            font-family: inherit;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .chat-input:focus {
+            border-color: var(--primary-glow);
+            box-shadow: 0 0 10px rgba(0, 242, 254, 0.15);
+        }
+
+        .send-btn {
+            background: linear-gradient(135deg, var(--primary-glow), var(--secondary-glow));
+            border: none;
+            border-radius: 8px;
+            padding: 0 24px;
+            color: #0b0f19;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .send-btn:hover {
+            opacity: 0.9;
+        }
+
+        /* Mode toggle and Metrics Row */
+        .controls-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12.5px;
+        }
+
+        .mode-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 22px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.1);
+            transition: .3s;
+            border-radius: 34px;
+            border: 1px solid var(--border-color);
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 3px;
+            bottom: 3px;
+            background-color: var(--text-muted);
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: rgba(0, 242, 254, 0.2);
+            border-color: var(--primary-glow);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(22px);
+            background-color: var(--primary-glow);
+        }
+
+        .metrics-container {
+            display: flex;
+            gap: 15px;
+            color: var(--text-muted);
+            font-size: 11.5px;
+        }
+
+        .metric-item span {
+            color: var(--secondary-glow);
+            font-weight: 600;
+        }
+
+        /* Seating Map inside Right Sidebar */
+        .seating-section {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .seat-map-wrapper {
+            margin-top: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .screen {
+            width: 100%;
+            height: 6px;
+            background: linear-gradient(to right, transparent, var(--secondary-glow), transparent);
+            border-radius: 50%;
+            box-shadow: 0 4px 10px rgba(79, 172, 254, 0.3);
+            text-align: center;
+            font-size: 8px;
+            color: var(--text-muted);
+            line-height: 20px;
+            margin-bottom: 10px;
+        }
+
+        .seat-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+        }
+
+        .seat {
+            width: 32px;
+            height: 30px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 600;
+            cursor: default;
+            transition: all 0.2s;
+        }
+
+        .seat.vip {
+            border: 1px solid var(--accent-gold);
+            background: rgba(246, 211, 101, 0.1);
+            color: var(--accent-gold);
+        }
+
+        .seat.standard {
+            border: 1px solid var(--secondary-glow);
+            background: rgba(79, 172, 254, 0.1);
+            color: var(--secondary-glow);
+        }
+
+        .seat.booked {
+            background: rgba(255, 51, 102, 0.2) !important;
+            border: 1px solid var(--accent-red) !important;
+            color: var(--accent-red) !important;
+            text-decoration: line-through;
+        }
+
+        .seat-legend {
+            display: flex;
+            gap: 12px;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+        }
+
+        /* Utilities */
+        .btn-reset {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 15px;
+            width: fit-content;
+            align-self: center;
+        }
+
+        .btn-reset:hover {
+            border-color: var(--accent-red);
+            color: var(--accent-red);
+            background: rgba(255, 51, 102, 0.05);
+        }
+
+        .typing-loader {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+            padding: 8px 12px;
+        }
+
+        .typing-loader span {
+            width: 8px;
+            height: 8px;
+            background-color: var(--text-muted);
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+
+        .typing-loader span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-loader span:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1.0); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .seat-map-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .seat-map-select {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            outline: none;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo-container">
+            <span class="logo-icon">🎬</span>
+            <h1 class="logo-title">Movie Booking AI Agent</h1>
+            <span class="badge-react">ReAct & Memory</span>
+        </div>
+        <div style="font-size: 13px; color: var(--text-muted)">
+            Lab 3 - Production Prototype
+        </div>
+    </header>
+
+    <div class="app-container">
+        
+        <!-- Left Sidebar: Memory Profile -->
+        <aside class="sidebar sidebar-left">
+            <div class="sidebar-header">
+                <h2>Loyalty Profile</h2>
+                <span style="font-size: 11px; color: var(--accent-green)">● Memory Online</span>
+            </div>
+            
+            <div class="profile-card" id="profile-container">
+                <div class="profile-field">
+                    <span class="label">User Name</span>
+                    <span class="value" id="p-name">Loading...</span>
+                </div>
+                <div class="profile-field">
+                    <span class="label">Favorite Genres</span>
+                    <span class="value" id="p-genres">-</span>
+                </div>
+                <div class="profile-field">
+                    <span class="label">Preferred Seat Class</span>
+                    <span class="value-vip" id="p-seat">-</span>
+                </div>
+                <div class="profile-field">
+                    <span class="label">Wallet Vouchers</span>
+                    <div id="p-vouchers">
+                        <!-- Vouchers will list here -->
+                    </div>
+                </div>
+                
+                <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 10px;">
+                    <span class="label">Past Booking History</span>
+                    <div class="history-list" id="p-bookings">
+                        <span style="font-size: 12px; color: var(--text-muted)">No bookings yet.</span>
+                    </div>
+                </div>
+                
+                <button class="btn-reset" onclick="resetMemory()">Clear Profile / History</button>
+            </div>
+        </aside>
+
+        <!-- Central Chat Workspace -->
+        <main class="chat-workspace">
+            <div class="chat-messages" id="chat-messages">
+                <!-- Welcome Message -->
+                <div class="chat-bubble chat-bubble-assistant">
+                    Chào mừng bạn đến với Rạp phim AI! Tôi là Movie Booking Agent hỗ trợ tự động tra cứu phim, ghế trống, tính toán giảm giá và đặt vé. 
+                    <br><br>
+                    Tôi có thể truy cập <strong>Hồ sơ tài viên</strong> của bạn để phục vụ nhanh chóng. Bạn muốn xem phim gì hôm nay?
+                </div>
+            </div>
+
+            <div class="chat-input-area">
+                <!-- Suggestions -->
+                <div class="chat-suggestions">
+                    <div class="suggestion-chip" onclick="applySuggestion(this)">Dune 2 VIP showtimes</div>
+                    <div class="suggestion-chip" onclick="applySuggestion(this)">Đặt 2 ghế Standard phim Batman lúc 19:00</div>
+                    <div class="suggestion-chip" onclick="applySuggestion(this)">Áp mã CGV30 đặt 1 vé VIP Dune 2 lúc 17:30</div>
+                    <div class="suggestion-chip" onclick="applySuggestion(this)">Doctor Strange có chiếu mấy giờ vậy?</div>
+                </div>
+
+                <!-- Input box -->
+                <div class="input-row">
+                    <input type="text" class="chat-input" id="chat-input" placeholder="Gõ yêu cầu đặt vé xem phim ở đây..." onkeydown="handleKeyDown(event)">
+                    <button class="send-btn" onclick="sendMessage()">Gửi</button>
+                </div>
+
+                <!-- Controls & Telemetry -->
+                <div class="controls-row">
+                    <div class="mode-toggle">
+                        <label class="switch">
+                            <input type="checkbox" id="mode-checkbox">
+                            <span class="slider"></span>
+                        </label>
+                        <span id="mode-label">ReAct Agent (Multi-step Loop)</span>
+                    </div>
+                    
+                    <div class="metrics-container" id="metrics-container" style="display: none;">
+                        <div class="metric-item">Latency: <span id="m-latency">0ms</span></div>
+                        <div class="metric-item">Steps: <span id="m-steps">0</span></div>
+                        <div class="metric-item">Tokens: <span id="m-tokens">0</span></div>
+                        <div class="metric-item">Cost: <span id="m-cost">$0.00</span></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Right Sidebar: Interactive Seats & Movies -->
+        <aside class="sidebar sidebar-right">
+            
+            <!-- Seat Map Section -->
+            <div class="seating-section">
+                <div class="seat-map-header">
+                    <h2>Live Seat Map</h2>
+                    <select class="seat-map-select" id="seat-selector" onchange="loadDatabase()">
+                        <option value="dune 2_17:30">Dune 2 - 17:30</option>
+                        <option value="dune 2_20:30">Dune 2 - 20:30</option>
+                        <option value="batman_19:00">The Batman - 19:00</option>
+                        <option value="spider-man_15:00">Spider-Man - 15:00</option>
+                    </select>
+                </div>
+                
+                <div class="seat-map-wrapper">
+                    <div class="screen">SCREEN</div>
+                    <div class="seat-grid" id="seat-grid">
+                        <!-- Seats dynamically generated here -->
+                    </div>
+                    <div class="seat-legend">
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: rgba(246, 211, 101, 0.15); border: 1px solid var(--accent-gold)"></div>
+                            <span>VIP</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: rgba(79, 172, 254, 0.1); border: 1px solid var(--secondary-glow)"></div>
+                            <span>Standard</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: rgba(255, 51, 102, 0.2); border: 1px solid var(--accent-red)"></div>
+                            <span>Booked</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Movies Database Section -->
+            <div class="sidebar-header" style="border-bottom: none; padding-bottom: 5px;">
+                <h2>Cinema Listings</h2>
+            </div>
+            <div class="db-section" id="movie-listings" style="overflow-y: auto; flex: 1;">
+                <!-- Movies listed here -->
+            </div>
+        </aside>
+
+    </div>
+
+    <script>
+        const API_BASE = "http://localhost:5000";
+
+        // Load page components on boot
+        window.addEventListener('DOMContentLoaded', () => {
+            loadProfile();
+            loadDatabase();
+            
+            // Mode toggle label listener
+            document.getElementById('mode-checkbox').addEventListener('change', function() {
+                const label = document.getElementById('mode-label');
+                if (this.checked) {
+                    label.innerText = "Baseline Chatbot (Single-Turn)";
+                    label.style.color = "var(--text-muted)";
+                } else {
+                    label.innerText = "ReAct Agent (Multi-step Loop)";
+                    label.style.color = "var(--primary-glow)";
+                }
+            });
+        });
+
+        // Load profile (Long term memory)
+        async function loadProfile() {
+            try {
+                const res = await fetch(`${API_BASE}/api/profile`);
+                const profile = await res.json();
+                
+                document.getElementById('p-name').innerText = profile.user_name || "Khách hàng";
+                document.getElementById('p-genres').innerText = (profile.favorite_genres || []).join(", ");
+                document.getElementById('p-seat').innerText = profile.preferred_seat_type || "Standard";
+                
+                // Render vouchers
+                const voucherDiv = document.getElementById('p-vouchers');
+                voucherDiv.innerHTML = '';
+                (profile.saved_vouchers || []).forEach(v => {
+                    const tag = document.createElement('span');
+                    tag.className = 'voucher-tag';
+                    tag.innerText = v;
+                    voucherDiv.appendChild(tag);
+                });
+                if ((profile.saved_vouchers || []).length === 0) {
+                    voucherDiv.innerHTML = '<span style="font-size:12px;color:var(--text-muted)">None</span>';
+                }
+
+                // Render bookings
+                const bookingDiv = document.getElementById('p-bookings');
+                bookingDiv.innerHTML = '';
+                const bookings = profile.past_bookings || [];
+                if (bookings.length === 0) {
+                    bookingDiv.innerHTML = '<span style="font-size: 12px; color: var(--text-muted)">No bookings yet.</span>';
+                } else {
+                    bookings.slice(-3).reverse().forEach(b => { // Show last 3
+                        const item = document.createElement('div');
+                        item.className = 'history-item';
+                        item.innerHTML = `
+                            <div class="id">${b.booking_id}</div>
+                            <div class="details">${b.movie} (${b.showtime}) - Ghế: ${b.seats.join(', ')}</div>
+                            <div class="details" style="color:var(--accent-green); font-size:11px">${b.total_price.toLocaleString()} VND</div>
+                        `;
+                        bookingDiv.appendChild(item);
+                    });
+                }
+            } catch (err) {
+                console.error("Error loading profile:", err);
+            }
+        }
+
+        // Load Movies and Seats
+        async function loadDatabase() {
+            try {
+                const res = await fetch(`${API_BASE}/api/database`);
+                const db = await res.json();
+                
+                // 1. Render movies
+                const movieList = document.getElementById('movie-listings');
+                movieList.innerHTML = '';
+                
+                Object.keys(db.movies).forEach(key => {
+                    const movie = db.movies[key];
+                    const card = document.createElement('div');
+                    card.className = 'movie-card';
+                    
+                    const showtimesHtml = movie.showtimes.map(t => `<span class="showtime-pill">${t}</span>`).join('');
+                    
+                    card.innerHTML = `
+                        <div class="movie-title">${movie.title}</div>
+                        <div class="movie-meta">${movie.genre}</div>
+                        <div style="margin-bottom:8px; font-size:12px; line-height:1.4">${movie.description}</div>
+                        <div style="margin-bottom:8px; font-size:11px; color:var(--accent-gold)">Standard: ${movie.prices.Standard.toLocaleString()} | VIP: ${movie.prices.VIP.toLocaleString()} VND</div>
+                        <div>${showtimesHtml}</div>
+                    `;
+                    movieList.appendChild(card);
+                });
+
+                // 2. Render Seat Map
+                const activeKey = document.getElementById('seat-selector').value;
+                const seatGrid = document.getElementById('seat-grid');
+                seatGrid.innerHTML = '';
+                
+                const seats = db.seats[activeKey] || {};
+                
+                // Sort keys alphabetically so seat grid maps correctly
+                const seatIds = Object.keys(seats).sort();
+                
+                seatIds.forEach(id => {
+                    const status = seats[id];
+                    const seatEl = document.createElement('div');
+                    
+                    const isVip = id.startsWith('A');
+                    seatEl.className = `seat ${isVip ? 'vip' : 'standard'} ${status.toLowerCase() === 'booked' ? 'booked' : ''}`;
+                    seatEl.innerText = id;
+                    seatEl.title = `${id} - ${status} (${isVip ? 'VIP' : 'Standard'})`;
+                    
+                    seatGrid.appendChild(seatEl);
+                });
+                
+            } catch (err) {
+                console.error("Error loading movie listings:", err);
+            }
+        }
+
+        // Send Message
+        async function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            if (!message) return;
+
+            input.value = '';
+            
+            // Render user bubble
+            appendMessage(message, 'user');
+            
+            // Show typing indicator
+            const loaderId = appendTypingIndicator();
+            
+            // Call API
+            const useChatbot = document.getElementById('mode-checkbox').checked;
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: message, use_chatbot: useChatbot })
+                });
+                const data = await response.json();
+                
+                // Remove loader
+                document.getElementById(loaderId).remove();
+                
+                if (data.error) {
+                    appendMessage(`Error: ${data.error}`, 'assistant');
+                    return;
+                }
+
+                // If ReAct loop, append trace
+                if (data.trace && data.trace.length > 0) {
+                    appendTrace(data.trace);
+                }
+                
+                // Append final answer
+                appendMessage(data.response, 'assistant');
+                
+                // Show telemetry metrics
+                document.getElementById('metrics-container').style.display = 'flex';
+                document.getElementById('m-latency').innerText = `${data.metrics.latency_ms}ms`;
+                document.getElementById('m-steps').innerText = data.metrics.steps;
+                document.getElementById('m-tokens').innerText = data.metrics.total_tokens;
+                document.getElementById('m-cost').innerText = `$${data.metrics.cost.toFixed(4)}`;
+                
+                // Reload UI database and profile
+                loadProfile();
+                // Always reload seat database to reflect booking state changes
+                loadDatabase();
+                
+                // Attempt to auto-switch seat selector if the query refers to a specific movie and showtime
+                detectAndSwitchSeatMap(message);
+                
+            } catch (err) {
+                console.error(err);
+                document.getElementById(loaderId).remove();
+                appendMessage("❌ Error: Could not connect to the booking services.", "assistant");
+            }
+        }
+
+        // Detect query entities and swap seat selector
+        function detectAndSwitchSeatMap(msg) {
+            const msgLower = msg.toLowerCase();
+            const selector = document.getElementById('seat-selector');
+            
+            let movie = "";
+            let time = "";
+            
+            if (msgLower.includes("batman") || msgLower.includes("the batman")) movie = "batman";
+            else if (msgLower.includes("dune") || msgLower.includes("dune 2")) movie = "dune 2";
+            else if (msgLower.includes("spider") || msgLower.includes("spider-man")) movie = "spider-man";
+            
+            if (msgLower.includes("17:30")) time = "17:30";
+            else if (msgLower.includes("20:30")) time = "20:30";
+            else if (msgLower.includes("19:00")) time = "19:00";
+            else if (msgLower.includes("15:00")) time = "15:00";
+
+            if (movie && time) {
+                const key = `${movie}_${time}`;
+                // Check if key is option in selector
+                for (let i=0; i<selector.options.length; i++) {
+                    if (selector.options[i].value === key) {
+                        selector.selectedIndex = i;
+                        loadDatabase();
+                        break;
+                    }
+                }
+            }
+            // Note: loadDatabase() is already called unconditionally in sendMessage()
+        }
+
+        function appendMessage(text, role) {
+            const chatLog = document.getElementById('chat-messages');
+            const bubble = document.createElement('div');
+            bubble.className = `chat-bubble chat-bubble-${role}`;
+            bubble.innerHTML = text.replace(/\n/g, '<br>');
+            chatLog.appendChild(bubble);
+            chatLog.scrollTop = chatLog.scrollHeight;
+        }
+
+        function appendTypingIndicator() {
+            const chatLog = document.getElementById('chat-messages');
+            const container = document.createElement('div');
+            const loaderId = 'loader_' + Date.now();
+            container.id = loaderId;
+            container.className = 'chat-bubble chat-bubble-assistant';
+            container.innerHTML = `
+                <div class="typing-loader">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            `;
+            chatLog.appendChild(container);
+            chatLog.scrollTop = chatLog.scrollHeight;
+            return loaderId;
+        }
+
+        // Render structured ReAct steps in chat log
+        function appendTrace(trace) {
+            const chatLog = document.getElementById('chat-messages');
+            const traceContainer = document.createElement('div');
+            traceContainer.className = 'trace-container collapsed';
+            
+            const traceId = 'trace_' + Date.now();
+            traceContainer.id = traceId;
+            
+            let stepsHtml = '';
+            trace.forEach(step => {
+                let stepDetails = '';
+                if (step.thought) {
+                    stepDetails += `<div class="t-thought">🧠 [Thought] ${step.thought}</div>`;
+                }
+                if (step.tool) {
+                    stepDetails += `<div class="t-action">🛠️ [Action] Call <u>${step.tool}</u> with ${JSON.stringify(step.arguments)}</div>`;
+                }
+                if (step.observation) {
+                    stepDetails += `<div class="t-observation">📡 [Observation] ${step.observation}</div>`;
+                }
+                if (step.final_answer) {
+                    stepDetails += `<div class="t-thought">🏁 [Final Decision] Formulating answer...</div>`;
+                }
+                if (step.error) {
+                    stepDetails += `<div class="t-observation" style="color:var(--accent-red)">⚠️ [Parser Error] ${step.error}</div>`;
+                }
+                
+                stepsHtml += `
+                    <div class="trace-step" style="border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 10px; margin-bottom: 10px;">
+                        <div style="color:var(--secondary-glow); font-size:10px; margin-bottom:4px">STEP ${step.step + 1}</div>
+                        ${stepDetails}
+                    </div>
+                `;
+            });
+
+            traceContainer.innerHTML = `
+                <div class="trace-header" onclick="toggleTrace('${traceId}')">
+                    <span>🕵️ ReAct Agent Loop Reasoning (${trace.length} turns)</span>
+                </div>
+                <div class="trace-body">
+                    ${stepsHtml}
+                </div>
+            `;
+            
+            chatLog.appendChild(traceContainer);
+            // Scroll to bottom after appending trace
+            setTimeout(() => { chatLog.scrollTop = chatLog.scrollHeight; }, 50);
+        }
+
+        function toggleTrace(id) {
+            const el = document.getElementById(id);
+            if (el.classList.contains('collapsed')) {
+                el.classList.remove('collapsed');
+            } else {
+                el.classList.add('collapsed');
+            }
+        }
+
+        function resetMemory() {
+            if (confirm("Bạn có chắc chắn muốn xóa toàn bộ lịch sử trò chuyện và giao dịch đặt vé trong hồ sơ không?")) {
+                fetch(`${API_BASE}/api/reset`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reset_profile: true })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    alert("Đã reset memory!");
+                    document.getElementById('chat-messages').innerHTML = `
+                        <div class="chat-bubble chat-bubble-assistant">
+                            Đã làm mới bộ nhớ. Tôi có thể hỗ trợ bạn tìm kiếm thông tin phim ảnh và đặt vé xem phim ngay bây giờ!
+                        </div>
+                    `;
+                    document.getElementById('metrics-container').style.display = 'none';
+                    loadProfile();
+                    loadDatabase();
+                });
+            }
+        }
+
+        function handleKeyDown(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        function applySuggestion(el) {
+            document.getElementById('chat-input').value = el.innerText;
+            document.getElementById('chat-input').focus();
+        }
+    </script>
+</body>
+</html>

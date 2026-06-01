@@ -1,56 +1,117 @@
-# Lab 3: Chatbot vs ReAct Agent (Industry Edition)
+# 🎬 Lab 3: Production-Grade Movie Booking ReAct Agent with Memory
 
-Welcome to Phase 3 of the Agentic AI course! This lab focuses on moving from a simple LLM Chatbot to a sophisticated **ReAct Agent** with industry-standard monitoring.
+This repository implements a **Production-Grade Movie Booking Agent** using the **ReAct (Reasoning and Acting) framework** coupled with **Short-Term (Conversation History) and Long-Term (User Profile Persistence) Memory systems**. 
+
+This system represents a significant shift from conversational LLMs (which fail to complete multi-step transactional logic) to agentic workflows that orchestrate external database state checks, complex pricing/discount math, and booking transactions.
+
+---
+
+## 🏗️ System Architecture
+
+The architecture consists of four main pillars: **The LLM Brain**, **Memory Systems**, **Tooling Inventory**, and **Industry-Standard Telemetry**.
+
+```mermaid
+graph TD
+    User([User Request]) --> Agent[ReAct Agent Loop]
+    
+    subgraph Brain [1. LLM Brain & Providers]
+        Agent <--> Provider[LLMProvider Interface]
+        Provider <--> OpenAI[OpenAI gpt-4o / gpt-4o-mini]
+        Provider <--> Gemini[Google Gemini 1.5 Flash]
+        Provider <--> Local[Local CPU - Phi-3 GGUF]
+        Provider <--> Mock[MockProvider for Offline Testing]
+    end
+
+    subgraph MemorySpace [2. Memory Systems]
+        Agent <--> STMemory[Short-Term Memory: Session Context]
+        Agent <--> LTMemory[Long-Term Memory: user_profile.json]
+    end
+
+    subgraph ToolSpace [3. Tooling Inventory]
+        Agent -- Execute Action --> Tools[movie_tools.py]
+        Tools --> Tool1[get_movie_info]
+        Tools --> Tool2[check_seat_availability]
+        Tools --> Tool3[calculate_total_price]
+        Tools --> Tool4[book_ticket]
+        Tools --> Tool5[apply_voucher]
+        Tools --> Tool6[web_search - Tavily]
+    end
+
+    subgraph TelemetrySpace [4. Telemetry & Logs]
+        Agent --> Logger[IndustryLogger JSON Logs]
+        Agent --> Tracker[PerformanceTracker metrics]
+    end
+    
+    Agent --> FinalAnswer([Final Response + Booking Confirmation])
+```
+
+### 1. Memory Systems (`src/agent/memory.py`)
+- **Short-Term Memory (Session Context)**: Temporarily keeps the dialogue logs of the current session.
+- Long-Term Memory (User Profile)**: Persists user-specific traits to [memory/user_profile.json](./memory/user_profile.json). It tracks:
+  - Preferred seat class (`VIP` vs `Standard`).
+  - Favorite genres.
+  - Active vouchers in wallet (e.g. `CGV30`, `STUDENT`).
+  - Past booking history (updated automatically upon successful booking).
+
+### 2. Tooling Inventory (`src/tools/movie_tools.py`)
+A custom tool suite designed with strict parameters and JSON output:
+- `get_movie_info`: Fetches genres, descriptions, and VIP/Standard prices for movies.
+- `check_seat_availability`: Queries current layout. Standard seats are rows B and C; VIP seats are row A.
+- `calculate_total_price`: Computes subtotals, concession combos, and voucher discounts.
+- `book_ticket`: Allocates seat numbers, performs transactions, and writes the booking to database.
+- `apply_voucher`: Verifies code percentage or fixed discount.
+- `web_search`: Uses Tavily API to fetch live internet info, fallback to search mockup if offline.
+
+---
+
+## 🎯 Test Cases & Evaluation Suite (`run_eval.py`)
+
+The evaluation script compares the **Baseline Chatbot** (which knows tool names but cannot invoke them) against the **ReAct Agent** (which operates in a Thought-Action-Observation loop).
+
+### Test Scenarios
+1. **Simple Query (Doctor Strange Showtimes)**: Checks search tool fallback for items missing from database.
+2. **Showtimes & Price (Dune 2 VIP)**: Evaluates single-step database retrieval.
+3. **Check Seats & Book (Batman)**: Requires checking available seats, calculating pricing for multiple tickets, and booking them.
+4. **Memory & Loyalty Voucher (Dune 2)**: The agent must read long-term memory to extract the user's VIP seat preference, check A1, apply `CGV30` voucher from the user's wallet, calculate the discounted price, and perform the booking.
+
+### Tracked Evaluation Metrics
+- **Success Rate**: Did the agent correctly book/retrieve the requested items?
+- **Response Latency (P50/P99)**: The duration of the entire execution.
+- **Token Efficiency**: Compares Prompt vs Completion token counts.
+- **Total Cost**: Computes approximate dollar usage based on API token rates.
+- **Avg Steps**: Number of loops taken to resolve the query.
+
+---
 
 ## 🚀 Getting Started
 
 ### 1. Setup Environment
-Copy the `.env.example` to `.env` and fill in your API keys:
+Copy the environment template and configure your parameters:
 ```bash
 cp .env.example .env
 ```
+Open [.env](./.env) and set your key:
+```env
+OPENAI_API_KEY=sk-proj-yourActualKeyHere
+DEFAULT_PROVIDER=openai
+DEFAULT_MODEL=gpt-4o
+```
+> [!NOTE]
+> **API Key Fallback**: If you run the evaluation suite without setting an API key, the script will notice and automatically launch in **`MockProvider`** mode. This simulates real OpenAI completions with pre-programmed behaviors so you can verify the loop logic locally without burning tokens.
 
 ### 2. Install Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. Directory Structure
-- `src/tools/`: Extension point for your custom tools.
-
-## 🏠 Running with Local Models (CPU)
-
-If you don't want to use OpenAI or Gemini, you can run open-source models (like Phi-3) directly on your CPU using `llama-cpp-python`.
-
-### 1. Download the Model
-Download the **Phi-3-mini-4k-instruct-q4.gguf** (approx 2.2GB) from Hugging Face:
-- [Phi-3-mini-4k-instruct-GGUF](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf)
-- Direct Download: [phi-3-mini-4k-instruct-q4.gguf](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf/resolve/main/Phi-3-mini-4k-instruct-q4.gguf)
-
-### 2. Place Model in Project
-Create a `models/` folder in the root and move the downloaded `.gguf` file there.
-
-### 3. Update `.env`
-Change your `DEFAULT_PROVIDER` and set the path:
-```env
-DEFAULT_PROVIDER=local
-LOCAL_MODEL_PATH=./models/Phi-3-mini-4k-instruct-q4.gguf
+### 3. Run the Evaluation Suite
+To execute all test cases and compare Chatbot vs ReAct Agent performance:
+```bash
+python run_eval.py
 ```
 
-## 🎯 Lab Objectives
-
-1.  **Baseline Chatbot**: Observe the limitations of a standard LLM when faced with multi-step reasoning.
-2.  **ReAct Loop**: Implement the `Thought-Action-Observation` cycle in `src/agent/agent.py`.
-3.  **Provider Switching**: Swap between OpenAI and Gemini seamlessly using the `LLMProvider` interface.
-4.  **Failure Analysis**: Use the structured logs in `logs/` to identify why the agent fails (hallucinations, parsing errors).
-5.  **Grading & Bonus**: Follow the [SCORING.md](file:///Users/tindt/personal/ai-thuc-chien/day03-lab-agent/SCORING.md) to maximize your points and explore bonus metrics.
-
-## 🛠️ How to Use This Baseline
-The code is designed as a **Production Prototype**. It includes:
-- **Telemetry**: Every action is logged in JSON format for later analysis.
-- **Robust Provider Pattern**: Easily extendable to any LLM API.
-- **Clean Skeletons**: Focus on the logic that matters—the agent's reasoning process.
-
----
-
-*Happy Coding! Let's build agents that actually work.*
+### 4. Review Reports & Telemetry
+- **Evaluation Summary**: Located at [logs/eval_summary.md](./logs/eval_summary.md) (with comparison tables).
+- **Evaluation Logs**: Raw trace logs stored in [logs/eval_results.json](./logs/eval_results.json).
+- **Group Report**: Finished lab report at [GROUP_REPORT_MOVIE_BOOKING.md](./report/group_report/GROUP_REPORT_MOVIE_BOOKING.md).
+- **Individual Report**: Finished individual contribution report at [REPORT_MOVIE_AGENT.md](./report/individual_reports/REPORT_MOVIE_AGENT.md).
