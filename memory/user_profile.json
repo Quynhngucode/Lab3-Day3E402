@@ -92,6 +92,28 @@
             ],
             "ticket_type": "Standard",
             "total_price": 112000
+        },
+        {
+            "booking_id": "BK-475532",
+            "movie": "The Batman",
+            "showtime": "19:00",
+            "seats": [
+                "B3",
+                "B4"
+            ],
+            "ticket_type": "Standard",
+            "total_price": 112000
+        },
+        {
+            "booking_id": "BK-108170",
+            "movie": "The Batman",
+            "showtime": "19:00",
+            "seats": [
+                "B2",
+                "B3"
+            ],
+            "ticket_type": "Standard",
+            "total_price": 160000
         }
     ]
 }

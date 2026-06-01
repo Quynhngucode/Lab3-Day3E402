@@ -1123,13 +1123,24 @@
             // Note: loadDatabase() is already called unconditionally in sendMessage()
         }
 
+        function scrollToBottom() {
+            const chatLog = document.getElementById('chat-messages');
+            // Timeout to yield thread and let browser update layout
+            setTimeout(() => {
+                chatLog.scrollTop = chatLog.scrollHeight;
+            }, 30);
+            setTimeout(() => {
+                chatLog.scrollTop = chatLog.scrollHeight;
+            }, 100);
+        }
+
         function appendMessage(text, role) {
             const chatLog = document.getElementById('chat-messages');
             const bubble = document.createElement('div');
             bubble.className = `chat-bubble chat-bubble-${role}`;
             bubble.innerHTML = text.replace(/\n/g, '<br>');
             chatLog.appendChild(bubble);
-            chatLog.scrollTop = chatLog.scrollHeight;
+            scrollToBottom();
         }
 
         function appendTypingIndicator() {
@@ -1146,7 +1157,7 @@
                 </div>
             `;
             chatLog.appendChild(container);
-            chatLog.scrollTop = chatLog.scrollHeight;
+            scrollToBottom();
             return loaderId;
         }
 
@@ -1196,14 +1207,14 @@
             `;
             
             chatLog.appendChild(traceContainer);
-            // Scroll to bottom after appending trace
-            setTimeout(() => { chatLog.scrollTop = chatLog.scrollHeight; }, 50);
+            scrollToBottom();
         }
 
         function toggleTrace(id) {
             const el = document.getElementById(id);
             if (el.classList.contains('collapsed')) {
                 el.classList.remove('collapsed');
+                scrollToBottom();
             } else {
                 el.classList.add('collapsed');
             }
