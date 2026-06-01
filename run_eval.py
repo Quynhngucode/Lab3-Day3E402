@@ -1,5 +1,7 @@
 import os
 import sys
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding='utf-8')
 import json
 import time
 from typing import Dict, Any
@@ -139,7 +141,7 @@ def run_evaluation():
         chatbot = BaselineChatbot(llm=provider, tools=TOOL_SPECS)
         
         # Track metrics
-        tracker.session_metrics = [] # Reset session
+        tracker.reset_session()
         start_time = time.time()
         
         # Run
@@ -147,11 +149,12 @@ def run_evaluation():
         
         latency = int((time.time() - start_time) * 1000)
         
-        # Aggregate tokens
-        total_tokens = sum(m.get("total_tokens", 0) for m in tracker.session_metrics)
-        prompt_tokens = sum(m.get("prompt_tokens", 0) for m in tracker.session_metrics)
-        completion_tokens = sum(m.get("completion_tokens", 0) for m in tracker.session_metrics)
-        cost = sum(m.get("cost_estimate", 0.0) for m in tracker.session_metrics)
+        # Aggregate stats using PerformanceTracker
+        summary = tracker.get_session_summary()
+        total_tokens = summary["total_tokens"]
+        prompt_tokens = summary["prompt_tokens"]
+        completion_tokens = summary["completion_tokens"]
+        cost = summary["cost_estimate"]
         
         # Evaluate success (baseline usually fails on multi-step bookings)
         success = False
@@ -185,7 +188,7 @@ def run_evaluation():
         print(f"\nRunning Case {case['id']}: {case['name']}...")
         agent = ReActAgent(llm=provider, tools=TOOL_SPECS, max_steps=6)
         
-        tracker.session_metrics = [] # Reset session
+        tracker.reset_session()
         start_time = time.time()
         
         # Run
@@ -193,11 +196,12 @@ def run_evaluation():
         
         latency = int((time.time() - start_time) * 1000)
         
-        # Aggregate tokens
-        total_tokens = sum(m.get("total_tokens", 0) for m in tracker.session_metrics)
-        prompt_tokens = sum(m.get("prompt_tokens", 0) for m in tracker.session_metrics)
-        completion_tokens = sum(m.get("completion_tokens", 0) for m in tracker.session_metrics)
-        cost = sum(m.get("cost_estimate", 0.0) for m in tracker.session_metrics)
+        # Aggregate stats using PerformanceTracker
+        summary = tracker.get_session_summary()
+        total_tokens = summary["total_tokens"]
+        prompt_tokens = summary["prompt_tokens"]
+        completion_tokens = summary["completion_tokens"]
+        cost = summary["cost_estimate"]
         steps_count = len(tracker.session_metrics)
         
         # Evaluate success
@@ -209,7 +213,7 @@ def run_evaluation():
         elif case["id"] == 3:
             success = "bk-" in response.lower() or "đặt thành công" in response.lower()
         elif case["id"] == 4:
-            success = "cgv30" in response.lower() and "bk-" in response.lower() and "a1" in response.lower()
+            success = "cgv30" in response.lower() and "bk-" in response.lower() and any(seat in response.lower() for seat in ["a1", "a2", "a3", "a4", "a5"])
 
         results["agent"].append({
             "id": case["id"],

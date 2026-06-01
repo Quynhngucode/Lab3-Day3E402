@@ -181,7 +181,7 @@ class MovieBookingHandler(BaseHTTPRequestHandler):
                 self.send_json({"error": f"Failed to load provider '{provider_name}': {e}"}, 500)
                 return
 
-            tracker.session_metrics = []
+            tracker.reset_session()
             start_time = time.time()
 
             if use_chatbot:

@@ -64,6 +64,7 @@ Final Answer: [Write your final response to the user. Explain pricing details, s
 4. ALWAYS call calculate_total_price first to check the cost, discounts, and vouchers before booking.
 5. Apply vouchers (like CGV30 or STUDENT) if the user has them in their Profile or requests them.
 6. Once seats and pricing are confirmed, call book_ticket to complete the transaction. Report the booking ID, seats, and final price in your Final Answer.
+7. If the user requests booking (e.g., "đặt giúp tôi", "hãy đặt giúp", "book giúp"), automatically select available seats from the check_seat_availability results and proceed directly to book_ticket. Do not stop to ask the user to choose or confirm seats.
 """
 
     def run(self, user_input: str) -> str:
@@ -118,6 +119,8 @@ Final Answer: [Write your final response to the user. Explain pricing details, s
             # Parse Thought
             thought_match = re.search(r"Thought:\s*(.*?)(?=\nAction:|\nFinal Answer:|$)", content, re.DOTALL | re.IGNORECASE)
             thought = thought_match.group(1).strip() if thought_match else ""
+            if thought:
+                logger.log_event("AGENT_THOUGHT", {"step": steps, "thought": thought})
             
             # 2. Check for Final Answer
             final_match = re.search(r"Final Answer:\s*(.*)", content, re.DOTALL | re.IGNORECASE)
@@ -132,6 +135,28 @@ Final Answer: [Write your final response to the user. Explain pricing details, s
                 
             # 3. Parse Action
             action_match = re.search(r"Action:\s*(\w+)\((.*)\)", content, re.DOTALL)
+            
+            # Robust fallback: if no Action and no Final Answer keyword, but we have text outside Thought,
+            # treat it as the Final Answer (model forgot prefix).
+            is_final_fallback = False
+            if not action_match and not final_match:
+                text_without_thought = content
+                if thought_match:
+                    text_without_thought = content.replace(thought_match.group(0), "").strip()
+                
+                text_without_thought = re.sub(r"^(Action:|Observation:|Final Answer:)\s*", "", text_without_thought, flags=re.IGNORECASE).strip()
+                if text_without_thought:
+                    final_answer = text_without_thought
+                    self.current_trace.append({
+                        "step": steps,
+                        "thought": thought,
+                        "final_answer": final_answer
+                    })
+                    is_final_fallback = True
+            
+            if is_final_fallback:
+                break
+                
             if action_match:
                 tool_name = action_match.group(1).strip()
                 args_str = action_match.group(2).strip()
@@ -151,6 +176,9 @@ Final Answer: [Write your final response to the user. Explain pricing details, s
                 
                 # Execute tool
                 observation = self._execute_tool(tool_name, args_dict)
+                if observation.startswith(f"Tool {tool_name} not found."):
+                    tracker.track_error("HALLUCINATION_ERROR", f"LLM hallucinated non-existent tool '{tool_name}'")
+                
                 logger.log_event("TOOL_RESPONSE", {"tool": tool_name, "result": observation})
                 
                 # Update observation in trace
@@ -160,14 +188,20 @@ Final Answer: [Write your final response to the user. Explain pricing details, s
                 react_trace += f"Observation: {observation}\n"
             else:
                 # If no Action and no Final Answer, LLM might have returned a thought only or got confused.
+                error_msg = "No valid ReAct Action format found."
+                tracker.track_error("JSON_PARSER_ERROR", "LLM response did not contain a valid Action or Final Answer block.")
+                
                 self.current_trace.append({
                     "step": steps,
                     "thought": thought or content,
-                    "error": "No valid ReAct Action format found."
+                    "error": error_msg
                 })
-                react_trace += "Observation: Error - No action format found. Please write 'Action: tool_name(arguments)' or 'Final Answer: ...'\n"
+                react_trace += f"Observation: Error - {error_msg} Please write 'Action: tool_name(arguments)' or 'Final Answer: ...'\n"
                 
             steps += 1
+            
+        if steps >= self.max_steps and not final_match:
+            tracker.track_error("TIMEOUT_ERROR", f"ReAct agent exceeded max_steps ({self.max_steps}) without generating a Final Answer.")
             
         logger.log_event("AGENT_END", {"steps": steps, "final_answer": final_answer})
         
@@ -243,8 +277,20 @@ Final Answer: [Write your final response to the user. Explain pricing details, s
                 
             elif tool_name == "calculate_total_price":
                 ticket_type = args_dict.get("ticket_type") or "Standard"
-                quantity = int(args_dict.get("quantity") or 1)
-                popcorn_combo_type = int(args_dict.get("popcorn_combo_type") or 0)
+                try:
+                    quantity = int(args_dict.get("quantity") or 1)
+                except Exception:
+                    quantity = 1
+                
+                popcorn_val = args_dict.get("popcorn_combo_type")
+                if popcorn_val is None or (isinstance(popcorn_val, str) and not popcorn_val.strip().isdigit()):
+                    popcorn_combo_type = 0
+                else:
+                    try:
+                        popcorn_combo_type = int(popcorn_val)
+                    except Exception:
+                        popcorn_combo_type = 0
+
                 voucher_code = args_dict.get("voucher_code") or ""
                 return calculate_total_price(
                     ticket_type=ticket_type,
@@ -265,7 +311,16 @@ Final Answer: [Write your final response to the user. Explain pricing details, s
                     else:
                         seats = [s.strip() for s in seats.split(",") if s.strip()]
                 ticket_type = args_dict.get("ticket_type") or "Standard"
-                popcorn_combo_type = int(args_dict.get("popcorn_combo_type") or 0)
+                
+                popcorn_val = args_dict.get("popcorn_combo_type")
+                if popcorn_val is None or (isinstance(popcorn_val, str) and not popcorn_val.strip().isdigit()):
+                    popcorn_combo_type = 0
+                else:
+                    try:
+                        popcorn_combo_type = int(popcorn_val)
+                    except Exception:
+                        popcorn_combo_type = 0
+
                 voucher_code = args_dict.get("voucher_code") or ""
                 
                 res_str = book_ticket(

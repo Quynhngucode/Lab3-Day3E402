@@ -29,6 +29,69 @@
             ],
             "ticket_type": "VIP",
             "total_price": 84000
+        },
+        {
+            "booking_id": "BK-881932",
+            "movie": "The Batman",
+            "showtime": "19:00",
+            "seats": [
+                "B1",
+                "B2"
+            ],
+            "ticket_type": "standard",
+            "total_price": 112000
+        },
+        {
+            "booking_id": "BK-857660",
+            "movie": "Dune: Part Two",
+            "showtime": "17:30",
+            "seats": [
+                "A3"
+            ],
+            "ticket_type": "VIP",
+            "total_price": 84000
+        },
+        {
+            "booking_id": "BK-428222",
+            "movie": "The Batman",
+            "showtime": "19:00",
+            "seats": [
+                "B3",
+                "B4"
+            ],
+            "ticket_type": "standard",
+            "total_price": 112000
+        },
+        {
+            "booking_id": "BK-678671",
+            "movie": "Dune: Part Two",
+            "showtime": "17:30",
+            "seats": [
+                "A2"
+            ],
+            "ticket_type": "VIP",
+            "total_price": 84000
+        },
+        {
+            "booking_id": "BK-714552",
+            "movie": "Dune: Part Two",
+            "showtime": "17:30",
+            "seats": [
+                "A5"
+            ],
+            "ticket_type": "VIP",
+            "total_price": 84000
+        },
+        {
+            "booking_id": "BK-831724",
+            "movie": "The Batman",
+            "showtime": "19:00",
+            "seats": [
+                "B1",
+                "B2"
+            ],
+            "ticket_type": "Standard",
+            "total_price": 112000
         }
     ]
 }
