@@ -357,3 +357,71 @@ def web_search(query: str) -> str:
         "query": query,
         "results": mock_search_results
     }, ensure_ascii=False)
+
+
+def search_youtube_trailer(movie_name: str) -> str:
+    """
+    Tìm kiếm trailer chính thức của phim trên YouTube và trả về link nhúng (embed URL) để trình phát video.
+    Args:
+        movie_name: Tên phim cần tìm trailer.
+    """
+    import urllib.request
+    import urllib.parse
+    import re
+    import json
+    
+    # Trailer thật chuẩn HD cho 3 phim mặc định của hệ thống
+    db_trailers = {
+        "dune": ("https://www.youtube.com/embed/U2Qp5pL3yTo", "U2Qp5pL3yTo", "Dune: Part Two - Official Trailer 3"),
+        "batman": ("https://www.youtube.com/embed/mqqft2x_Aa4", "mqqft2x_Aa4", "The Batman - Official Trailer"),
+        "spider": ("https://www.youtube.com/embed/cqGjhVJWtEg", "cqGjhVJWtEg", "Spider-Man: Across the Spider-Verse - Official Trailer")
+    }
+
+    m_lower = movie_name.lower()
+    for key, val in db_trailers.items():
+        if key in m_lower:
+            return json.dumps({
+                "status": "success",
+                "movie_name": movie_name,
+                "video_id": val[1],
+                "embed_url": val[0],
+                "title": val[2],
+                "source": "database"
+            }, ensure_ascii=False)
+
+    # Nếu phim khác, cào nhẹ tìm video ID đầu tiên trên YouTube
+    try:
+        query = urllib.parse.quote(f"{movie_name} official trailer")
+        url = f"https://www.youtube.com/results?search_query={query}"
+        
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)'}
+        req = urllib.request.Request(url, headers=headers)
+        
+        with urllib.request.urlopen(req, timeout=5) as response:
+            html = response.read().decode('utf-8')
+            
+        video_ids = re.findall(r"\"videoId\":\"([^\"]+)\"", html)
+        if video_ids:
+            video_id = video_ids[0]
+            return json.dumps({
+                "status": "success",
+                "movie_name": movie_name,
+                "video_id": video_id,
+                "embed_url": f"https://www.youtube.com/embed/{video_id}",
+                "title": f"{movie_name} Official Trailer",
+                "source": "youtube_search"
+            }, ensure_ascii=False)
+    except Exception as e:
+        pass
+
+    # Fallback link tìm kiếm
+    search_url = f"https://www.youtube.com/results?search_query={urllib.parse.quote(movie_name)}+official+trailer"
+    return json.dumps({
+        "status": "success",
+        "movie_name": movie_name,
+        "video_id": "",
+        "embed_url": "",
+        "title": f"{movie_name} Search Results",
+        "search_link": search_url,
+        "message": f"Không tìm thấy mã video trực tiếp. Bạn có thể xem kết quả tìm kiếm tại: {search_url}"
+    }, ensure_ascii=False)

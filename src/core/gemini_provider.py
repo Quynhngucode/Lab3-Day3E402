@@ -10,7 +10,7 @@ class GeminiProvider(LLMProvider):
     """
     LLM Provider using the new google-genai SDK (replaces deprecated google-generativeai).
     """
-    def __init__(self, model_name: str = "gemini-1.5-flash", api_key: Optional[str] = None):
+    def __init__(self, model_name: str = "gemini-3-flash-preview", api_key: Optional[str] = None):
         super().__init__(model_name, api_key)
         self.client = genai.Client(api_key=self.api_key)
         self._base_model_name = model_name

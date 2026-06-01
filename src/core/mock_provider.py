@@ -26,21 +26,26 @@ class MockProvider(LLMProvider):
             # We can detect this by counting how many Observations are in the prompt
             obs_count = prompt.count("Observation:")
             
-            if "doctor strange" in prompt_lower:
+            # Isolate the latest message to avoid matching history
+            query_part = prompt_lower
+            if "new message to answer:" in prompt_lower:
+                query_part = prompt_lower.split("new message to answer:")[-1]
+            
+            if "doctor strange" in query_part:
                 # Case 1: Doctor Strange showtimes
                 if obs_count == 0:
                     content = "Thought: I need to check the details and showtimes for Doctor Strange.\nAction: get_movie_info({\"movie_name\": \"Doctor Strange\"})"
                 elif obs_count == 1:
                     content = "Thought: The search returned that Doctor Strange is not in our mock database but found search results. I will show the user what we found.\nFinal Answer: Phim Doctor Strange hiện tại không có trong hệ thống rạp của chúng tôi. Tuy nhiên, thông tin tìm kiếm cho biết vé VIP có giá từ 120k VND và Standard là 80k VND."
             
-            elif "lịch chiếu và giá vé vip" in prompt_lower or "dune 2" in prompt_lower and "vip" in prompt_lower and "đặt" not in prompt_lower:
+            elif "lịch chiếu và giá vé vip" in query_part or "dune 2" in query_part and "vip" in query_part and "đặt" not in query_part:
                 # Case 2: Dune 2 VIP showtimes & pricing
                 if obs_count == 0:
                     content = "Thought: I need to query movie information for Dune 2.\nAction: get_movie_info({\"movie_name\": \"dune 2\"})"
                 elif obs_count == 1:
                     content = "Thought: I have the movie info now, showing Dune: Part Two showtimes (14:00, 17:30, 20:30) and VIP ticket price (120,000 VND). I can answer the user.\nFinal Answer: Lịch chiếu phim Dune: Part Two là 14:00, 17:30 và 20:30. Giá vé VIP là 120.000 VND, còn vé Standard là 80.000 VND."
                     
-            elif "batman lúc 19:00" in prompt_lower and "đặt giúp" in prompt_lower:
+            elif "batman lúc 19:00" in query_part and "đặt giúp" in query_part:
                 # Case 3: Batman 19:00 seats and booking 2 seats
                 if obs_count == 0:
                     content = "Thought: I need to check the available seats for Batman at 19:00.\nAction: check_seat_availability({\"movie_name\": \"batman\", \"showtime\": \"19:00\"})"
@@ -52,7 +57,7 @@ class MockProvider(LLMProvider):
                 elif obs_count == 3:
                     content = "Thought: Booking was successful. I will present the booking ID and seats to the user.\nFinal Answer: Tôi đã đặt thành công 2 vé Standard cho phim The Batman lúc 19:00. Mã ghế của bạn là B2, B3. Tổng tiền là 160.000 VND. Mã đặt vé của bạn là BK-123456."
                     
-            elif "1 vé vip cho phim dune 2 lúc 17:30" in prompt_lower or "hồ sơ" in prompt_lower:
+            elif "1 vé vip cho phim dune 2 lúc 17:30" in query_part or "hồ sơ" in query_part:
                 # Case 4: Long term memory and voucher
                 if obs_count == 0:
                     # User profile says VIP seat preference, voucher CGV30 is in profile wallet
@@ -66,20 +71,53 @@ class MockProvider(LLMProvider):
                 elif obs_count == 4:
                     content = "Thought: Booking completed. I will inform the user.\nFinal Answer: Vé VIP của bạn đã được đặt thành công cho phim Dune: Part Two lúc 17:30. Ghế được chọn là A1. Nhờ áp dụng mã giảm giá CGV30 (30%), tổng số tiền thanh toán là 84.000 VND (giá gốc 120.000 VND). Mã đặt vé: BK-777888."
             
+            elif "trailer" in query_part or "xem trailer" in query_part:
+                if obs_count == 0:
+                    movie = "dune 2"
+                    if "batman" in query_part:
+                        movie = "batman"
+                    elif "spider" in query_part:
+                        movie = "spider-man"
+                    content = f"Thought: I need to search for the trailer of {movie}.\nAction: search_youtube_trailer({{\"movie_name\": \"{movie}\"}})"
+                elif obs_count == 1:
+                    embed_url = "https://www.youtube.com/embed/U2Qp5pL3yTo"
+                    title = "Dune: Part Two"
+                    if "batman" in query_part:
+                        embed_url = "https://www.youtube.com/embed/mqqft2x_Aa4"
+                        title = "The Batman"
+                    elif "spider" in query_part:
+                        embed_url = "https://www.youtube.com/embed/cqGjhVJWtEg"
+                        title = "Spider-Man: Across the Spider-Verse"
+                    content = f"Thought: I have the trailer embed link. I will show it to the user.\nFinal Answer: Chắc chắn rồi! Dưới đây là trailer chính thức của phim {title}. Chúc bạn xem trailer vui vẻ!\n\n{embed_url}"
+
             else:
                 # Catch-all ReAct response
                 content = "Thought: I will perform a search to answer the query.\nAction: web_search({\"query\": \"" + prompt[:30] + "\"})" if obs_count == 0 else "Thought: Ready to reply.\nFinal Answer: Xin chào, tôi có thể giúp gì cho bạn về thông tin lịch chiếu và đặt vé xem phim?"
         
         else:
             # Chatbot Baseline simulation logic (no tool calls, direct output)
-            if "doctor strange" in prompt_lower:
+            query_part = prompt_lower
+            if "new message to answer:" in prompt_lower:
+                query_part = prompt_lower.split("new message to answer:")[-1]
+                
+            if "doctor strange" in query_part:
                 content = "Phim Doctor Strange hiện tại không chiếu rạp, giá vé có thể là 80.000 VND cho Standard và 120.000 VND cho VIP. Bạn có muốn đặt phim khác không?"
-            elif "lịch chiếu và giá vé vip" in prompt_lower or "dune 2" in prompt_lower and "vip" in prompt_lower and "đặt" not in prompt_lower:
+            elif "lịch chiếu và giá vé vip" in query_part or "dune 2" in query_part and "vip" in query_part and "đặt" not in query_part:
                 content = "Lịch chiếu phim Dune 2 là các khung giờ trong ngày, vé VIP giá khoảng 120.000 VND. Vui lòng cho tôi biết bạn muốn đặt mấy vé."
-            elif "batman lúc 19:00" in prompt_lower and "đặt giúp" in prompt_lower:
+            elif "batman lúc 19:00" in query_part and "đặt giúp" in query_part:
                 content = "Tôi không thể kiểm tra ghế trống hay đặt vé trực tiếp cho bạn được vì tôi là chatbot thông thường. Tuy nhiên, giá vé Standard phim Batman lúc 19:00 là 80.000 VND. Bạn nên tự lên website để đặt vé."
-            elif "1 vé vip cho phim dune 2 lúc 17:30" in prompt_lower or "hồ sơ" in prompt_lower:
+            elif "1 vé vip cho phim dune 2 lúc 17:30" in query_part or "hồ sơ" in query_part:
                 content = "Chào bạn, tôi nhớ bạn thích ngồi ghế VIP và có voucher CGV30. Tuy nhiên tôi không thể tự động tra cứu ghế hay áp dụng mã đặt vé cho bạn. Bạn có thể tự đặt trên web của rạp."
+            elif "trailer" in query_part or "xem trailer" in query_part:
+                title = "Dune: Part Two"
+                embed_url = "https://www.youtube.com/embed/U2Qp5pL3yTo"
+                if "batman" in query_part:
+                    title = "The Batman"
+                    embed_url = "https://www.youtube.com/embed/mqqft2x_Aa4"
+                elif "spider" in query_part:
+                    title = "Spider-Man: Across the Spider-Verse"
+                    embed_url = "https://www.youtube.com/embed/cqGjhVJWtEg"
+                content = f"Chào bạn! Dưới đây là trailer phim {title} để bạn tham khảo. Để đặt vé trực tiếp, hãy chuyển sang chế độ ReAct Agent nhé!\n\n{embed_url}"
             else:
                 content = "Chào bạn! Tôi có thể hỗ trợ bạn tìm kiếm thông tin phim ảnh và tư vấn đặt vé xem phim."
 

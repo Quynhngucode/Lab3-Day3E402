@@ -41,6 +41,10 @@ TOOL_SPECS = [
     {
         "name": "web_search",
         "description": "web_search(query) -> Searches the internet for information on movie schedules, news, or reviews and returns snippet results."
+    },
+    {
+        "name": "search_youtube_trailer",
+        "description": "search_youtube_trailer(movie_name) -> Searches for the official movie trailer on YouTube and returns a JSON string containing the video ID, embed URL, and title for embedding a video player."
     }
 ]
 
@@ -98,7 +102,7 @@ def init_provider():
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key or api_key.strip() == "" or "your_" in api_key:
             print("Warning: GEMINI_API_KEY not configured. Falling back to MockProvider for demonstration.")
-            return MockProvider("mock-gemini-1.5-flash")
+            return MockProvider("mock-gemini-3-flash-preview")
         from src.core.gemini_provider import GeminiProvider
         return GeminiProvider(model_name=model_name, api_key=api_key)
         

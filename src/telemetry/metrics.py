@@ -7,7 +7,7 @@ PRICING = {
         "input": 2.50 / 1_000_000,   # $2.50 per 1M tokens
         "output": 10.00 / 1_000_000, # $10.00 per 1M tokens
     },
-    "gemini-1.5-flash": {
+    "gemini-3-flash-preview": {
         "input": 0.075 / 1_000_000,
         "output": 0.30 / 1_000_000,
     },
@@ -35,8 +35,8 @@ def _resolve_pricing(model_name: str) -> Dict[str, float]:
     # Check for mock mapping first to show realistic cost during simulation/evaluation
     if "mock-gpt-4o" in model_lower:
         return PRICING["gpt-4o"]
-    elif "mock-gemini-1.5-flash" in model_lower:
-        return PRICING["gemini-1.5-flash"]
+    elif "mock-gemini-3-flash-preview" in model_lower:
+        return PRICING["gemini-3-flash-preview"]
     elif "mock-gemini-1.5-pro" in model_lower:
         return PRICING["gemini-1.5-pro"]
     elif "mock-phi" in model_lower or "mock-llm" in model_lower:
@@ -45,8 +45,8 @@ def _resolve_pricing(model_name: str) -> Dict[str, float]:
     # Check regular models
     if "gpt-4o" in model_lower:
         return PRICING["gpt-4o"]
-    elif "gemini-1.5-flash" in model_lower:
-        return PRICING["gemini-1.5-flash"]
+    elif "gemini-3-flash-preview" in model_lower:
+        return PRICING["gemini-3-flash-preview"]
     elif "gemini-1.5-pro" in model_lower:
         return PRICING["gemini-1.5-pro"]
     elif "phi-3" in model_lower or "local" in model_lower:
