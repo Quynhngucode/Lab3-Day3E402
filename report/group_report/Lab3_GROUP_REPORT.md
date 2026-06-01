@@ -1,7 +1,7 @@
 # Group Report: Lab 3 - Production-Grade Agentic System
 
 - **Team Name**: Team E402
-- **Team Members**: Vu Nhat Anh, Bui Tuan Minh, 
+- **Team Members**: Vu Nhat Anh, Bui Tuan Minh, Nguyen Hoai Ngoc, Tran Truc Quynh
 - **Deployment Date**: 2026-06-01
 
 ---
