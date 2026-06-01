@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CineBot // Cinema booking ReAct Agent</title>
+    <!-- Modern Premium Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <!-- Google Material Symbols -->
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <link rel="stylesheet" href="index.css">
+</head>
+
+<body>
+    <div class="app-container">
+
+        <!-- SIDEBAR PANEL -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="glow-logo">
+                    <span class="material-symbols-outlined logo-icon">smart_toy</span>
+                    <h1>CineBot <span class="badge">ReAct</span></h1>
+                </div>
+                <p class="sidebar-subtitle">Hệ thống Đặt vé rạp phim thông minh</p>
+            </div>
+
+            <div class="sidebar-section">
+                <h3 class="section-title">Cấu hình Mô hình AI</h3>
+
+                <!-- Dynamic Sliding Switch Toggle -->
+                <div class="provider-switch-container">
+                    <div class="provider-switch" id="providerToggle">
+                        <div class="switch-glow"></div>
+                        <button class="switch-btn active" id="btnMimo" data-provider="mimo">
+                            <span class="material-symbols-outlined">api</span> MiMo v2.5
+                        </button>
+                        <button class="switch-btn" id="btnGoogle" data-provider="google">
+                            <span class="material-symbols-outlined">cloud</span> Gemini
+                        </button>
+                        <button class="switch-btn" id="btnLocal" data-provider="local">
+                            <span class="material-symbols-outlined">dns</span> Phi-3 Local
+                        </button>
+                    </div>
+                </div>
+
+                <!-- MiMo Config Panel -->
+                <div class="config-panel active" id="mimoConfig">
+                    <label for="mimoApiKeyInput" class="input-label">MiMo Token Plan API Key</label>
+                    <div class="api-key-wrapper">
+                        <span class="material-symbols-outlined input-icon">key</span>
+                        <input type="password" id="mimoApiKeyInput" placeholder="Nhập MiMo API Key..."
+                            autocomplete="new-password" />
+                        <button id="toggleMimoApiKeyVisible" class="toggle-visibility-btn">
+                            <span class="material-symbols-outlined" id="mimoEyeIcon">visibility_off</span>
+                        </button>
+                    </div>
+                    <span class="help-text">Sử dụng API Key <code>OPENAI_API_KEY</code> trong tệp tin <code>.env</code>
+                        nếu bỏ trống.</span>
+                </div>
+
+                <!-- Gemini Config Panel -->
+                <div class="config-panel" id="googleConfig">
+                    <label for="apiKeyInput" class="input-label">Gemini API Key</label>
+                    <div class="api-key-wrapper">
+                        <span class="material-symbols-outlined input-icon">key</span>
+                        <input type="password" id="apiKeyInput" placeholder="Nhập Gemini API Key..."
+                            autocomplete="new-password" />
+                        <button id="toggleApiKeyVisible" class="toggle-visibility-btn">
+                            <span class="material-symbols-outlined" id="eyeIcon">visibility_off</span>
+                        </button>
+                    </div>
+                    <span class="help-text">Ưu tiên sử dụng API Key trong tệp tin <code>.env</code> nếu bỏ trống.</span>
+                </div>
+
+                <!-- Local Config Panel -->
+                <div class="config-panel" id="localConfig">
+                    <div class="local-status-card">
+                        <div class="status-item">
+                            <span class="status-dot green animate-pulse"></span>
+                            <span>Mô hình: <strong>Phi-3-mini GGUF</strong></span>
+                        </div>
+                        <div class="status-item">
+                            <span class="material-symbols-outlined">cpu</span>
+                            <span>Chạy offline trên CPU (4 Threads)</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="material-symbols-outlined">memory</span>
+                            <span>Context window: <strong>4096 tokens</strong></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CHAT MODE SELECTION -->
+            <div class="sidebar-section">
+                <h3 class="section-title">Chế độ hoạt động</h3>
+                <div class="mode-switch-container">
+                    <div class="mode-switch" id="modeToggle">
+                        <div class="mode-switch-glow"></div>
+                        <button class="mode-switch-btn active" id="btnAgent" data-mode="agent">
+                            <span class="material-symbols-outlined">psychology</span> ReAct Agent
+                        </button>
+                        <button class="mode-switch-btn" id="btnChatbot" data-mode="chatbot">
+                            <span class="material-symbols-outlined">forum</span> Chatbot
+                        </button>
+                    </div>
+                </div>
+                <span class="help-text" id="modeHelpText">
+                    <strong>ReAct Agent:</strong> Có khả năng sử dụng các công cụ rạp phim để tra cứu và đặt vé chính
+                    xác.
+                </span>
+            </div>
+
+            <!-- Quick Preset Queries -->
+            <div class="sidebar-section">
+                <h3 class="section-title">Câu hỏi Mẫu gợi ý</h3>
+                <div class="presets-grid">
+                    <button class="preset-btn" data-query="Tìm lịch chiếu phim Doraemon tại Beta Cinemas hôm nay.">
+                        🔍 Xem lịch Doraemon
+                    </button>
+                    <button class="preset-btn"
+                        data-query="Tìm lịch phim Doraemon hôm nay tại Beta Cinemas. Tính tổng tiền mua 2 vé VIP.">
+                        💳 Tính giá 2 vé VIP Doraemon
+                    </button>
+                    <button class="preset-btn"
+                        data-query="Tìm lịch phim Avengers hôm nay tại Beta Cinemas. Đặt 2 vé ghế Premium lúc 18:00 và dùng mã giảm giá SUMMER20.">
+                        🎟️ Đặt vé Avengers + SUMMER20
+                    </button>
+                </div>
+            </div>
+
+            <!-- System Telemetry Board -->
+            <div class="sidebar-section telemetry-section">
+                <h3 class="section-title">Bảng thông số Kỹ thuật</h3>
+                <div class="telemetry-grid">
+                    <div class="telemetry-card">
+                        <span class="telemetry-val" id="telemetryLatency">-</span>
+                        <span class="telemetry-label">Độ trễ (Latency)</span>
+                    </div>
+                    <div class="telemetry-card">
+                        <span class="telemetry-val" id="telemetrySteps">-</span>
+                        <span class="telemetry-label">Số bước ReAct (Steps)</span>
+                    </div>
+                    <div class="telemetry-card">
+                        <span class="telemetry-val" id="telemetryTokens">-</span>
+                        <span class="telemetry-label">Tổng Tokens</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <span>Trạng thái máy chủ:</span>
+                <span class="server-status ready" id="serverStatus">
+                    <span class="status-dot green"></span> Đang kết nối
+                </span>
+            </div>
+        </aside>
+
+        <!-- MAIN CHAT INTERFACE -->
+        <main class="chat-area">
+
+            <!-- Chat Header -->
+            <header class="chat-header">
+                <div class="header-left">
+                    <h2>Phòng chat AI Agent</h2>
+                    <p class="status-desc" id="currentModelDesc">Sử dụng Google gemini-3-flash-preview thông qua API</p>
+                </div>
+                <div class="header-right">
+                    <button class="action-icon-btn" id="clearChatBtn" title="Xóa lịch sử chat">
+                        <span class="material-symbols-outlined">delete_sweep</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Messages Stream -->
+            <div class="messages-container" id="messagesContainer">
+
+                <!-- Welcome Message -->
+                <div class="message system-message">
+                    <div class="system-bubble">
+                        <span class="material-symbols-outlined">info</span>
+                        <div>
+                            <strong>Chào mừng bạn đến với CineBot!</strong> Hệ thống của chúng tôi sử dụng mô hình ReAct
+                            Agent thông minh. CineBot có thể <strong>Tra cứu lịch chiếu</strong>, <strong>Tính toán giá
+                                tiền vé</strong> (VIP/Premium/Standard + Mã giảm giá) và <strong>Đặt vé phim</strong>
+                            trực tiếp thông qua các công cụ tích hợp sẵn.
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Input Control Area -->
+            <footer class="chat-input-area">
+                <form id="chatForm" class="chat-form">
+                    <textarea id="userInput"
+                        placeholder="Nhập yêu cầu đặt vé của bạn (Ví dụ: Tra cứu lịch chiếu Avengers hôm nay và đặt 1 vé VIP)..."
+                        rows="1" required></textarea>
+
+                    <div class="input-controls">
+                        <button type="submit" class="send-btn" id="sendBtn">
+                            <span class="material-symbols-outlined">send</span> Send
+                        </button>
+                    </div>
+                </form>
+            </footer>
+
+        </main>
+
+    </div>
+
+    <script src="index.js"></script>
+</body>
+
+</html>

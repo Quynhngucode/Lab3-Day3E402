@@ -1,12 +1,18 @@
+import os
 import time
 from typing import Dict, Any, Optional, Generator
 from openai import OpenAI
 from src.core.llm_provider import LLMProvider
+from src.telemetry.metrics import tracker
 
 class OpenAIProvider(LLMProvider):
     def __init__(self, model_name: str = "gpt-4o", api_key: Optional[str] = None):
         super().__init__(model_name, api_key)
-        self.client = OpenAI(api_key=self.api_key)
+        base_url = os.getenv("OPENAI_BASE_URL")
+        if base_url:
+            self.client = OpenAI(api_key=self.api_key, base_url=base_url)
+        else:
+            self.client = OpenAI(api_key=self.api_key)
 
     def generate(self, prompt: str, system_prompt: Optional[str] = None) -> Dict[str, Any]:
         start_time = time.time()
@@ -31,6 +37,9 @@ class OpenAIProvider(LLMProvider):
             "completion_tokens": response.usage.completion_tokens,
             "total_tokens": response.usage.total_tokens
         }
+
+        # Track telemetry request metric with cost estimation
+        tracker.track_request("openai", self.model_name, usage, latency_ms)
 
         return {
             "content": content,
