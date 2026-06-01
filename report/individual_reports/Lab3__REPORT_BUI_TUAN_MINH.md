@@ -1,6 +1,6 @@
 # Individual Report: Lab 3 - Chatbot vs ReAct Agent
 
-- **Student Name**: Bùi Tuấn Minh
+- **Student Name**: Bui Tuan Minh
 - **Student ID**: 2A202600728
 - **Date**: 2026-06-01
 
@@ -10,20 +10,20 @@
 
 *Describe your specific contribution to the codebase (e.g., implemented a specific tool, fixed the parser, etc.).*
 
-Trong buổi thực hành Lab 3, tôi đã đóng góp các cải tiến kỹ thuật quan trọng nhằm nâng cao tính tin cậy của ReAct Agent và giải quyết các lỗi tích hợp nghiêm trọng trên hệ thống CineBot:
+During Lab 3, I made significant technical contributions aimed at enhancing the reliability of the ReAct Agent and resolving critical integration issues on the CineBot system:
 
-- **Modules Implementated**: 
-  - [static/index.html] (Khắc phục lỗi tự động điền đè API Key)
-  - [react_agent.py] (Nâng cấp hệ thống System Prompt lên phiên bản v2)
-  - [src/agent/agent.py] (Đảm bảo đồng bộ hóa logic ReAct Agent)
+- **Modules Implemented**: 
+  - [static/index.html] (Resolved browser autofill overriding the API Key)
+  - [react_agent.py] (Upgraded the System Prompt to Prompt v2)
+  - [src/agent/agent.py] (Ensured synchronization of ReAct Agent logic)
 
 - **Code Highlights**:
-  1. *Ngăn ngừa Browser Autofill ghi đè API Key trong `static/index.html`*:
+  1. *Preventing Browser Autofill from overriding the API Key in `static/index.html`*:
      ```html
      <input type="password" id="mimoApiKeyInput" placeholder="Nhập MiMo API Key..." autocomplete="new-password" />
      <input type="password" id="apiKeyInput" placeholder="Nhập Gemini API Key..." autocomplete="new-password" />
      ```
-  2. *Nâng cấp Prompt v2 cho ReAct Loop trong `react_agent.py`*:
+  2. *Upgrading to Prompt v2 for the ReAct Loop in `react_agent.py`*:
      ```python
      SYSTEM_PROMPT = f"""You are a cinema ticket booking assistant. Your goal is to help users through selecting a movie and showtime, calculating total price, and confirming the reservation.
      You MUST follow this exact ReAct loop format for EVERY step:
@@ -41,8 +41,8 @@ Trong buổi thực hành Lab 3, tôi đã đóng góp các cải tiến kỹ th
      ```
 
 - **Documentation**: 
-  - Khai báo `autocomplete="new-password"` giúp ngăn các trình quản lý mật khẩu tự động chèn thông tin nhạy cảm vào ô nhập khóa API, tránh việc gửi khóa rác lên backend làm gián đoạn vòng lặp ReAct của Agent.
-  - Việc cấu trúc lại prompt v2 tuân thủ nghiêm ngặt mô hình Thought-Action-Observation giúp mô hình ngôn ngữ (cả cloud như MiMo/Gemini lẫn local Phi-3) hiểu rõ các ràng buộc nghiệp vụ, gọi đúng tool theo đúng thứ tự logic (không được book vé trước khi tính toán tổng tiền, và không được tính tiền nếu không có lịch chiếu).
+  - Declaring `autocomplete="new-password"` prevents browser password managers from automatically inserting stored credentials or mismatched passwords into the API Key input fields. This ensures that the frontend does not send invalid keys to the backend, which previously caused ReAct loop authentication failures.
+  - Structuring Prompt v2 in a strict Thought-Action-Observation format guides the language models (both cloud-based like MiMo/Gemini and local like Phi-3) to respect cinema ticketing business rules. This enforces a mandatory tool sequence (`check_movie_schedule` -> `calculate_total_price` -> `book_movie_ticket`) and prevents calculation or booking when required slots or showtimes are missing.
 
 ---
 
@@ -51,27 +51,23 @@ Trong buổi thực hành Lab 3, tôi đã đóng góp các cải tiến kỹ th
 *Analyze a specific failure event you encountered during the lab using the logging system.*
 
 - **Problem Description**: 
-  - Hệ thống ReAct Agent bị lỗi khi chuyển sang nhà cung cấp mô hình `MiMo-v2.5-Pro` với thông báo lỗi: `Error code: 401 - {'error': {'message': 'Invalid API Key', 'param': 'Please provide valid API Key', 'code': '401', 'type': 'invalid_key'}}`. Mặc dù file `.env` đã được điền API Key hoàn chỉnh.
+  - The ReAct Agent failed when switching to the `MiMo-v2.5-Pro` provider, returning the following system error: `Error code: 401 - {'error': {'message': 'Invalid API Key', 'param': 'Please provide valid API Key', 'code': '401', 'type': 'invalid_key'}}`, despite having a fully configured API Key in the `.env` file.
 
 - **Log Source**: 
-  - Log từ terminal chạy backend `app.py`:
+  - Log from backend `app.py` terminal:
     ```text
     [*] Processing message via MIMO provider in AGENT mode...
     [ERROR] OpenAI API call failed: Error code: 401 - {'error': {'message': 'Invalid API Key', 'param': 'Please provide valid API Key', 'code': '401', 'type': 'invalid_key'}}
     ```
 
 - **Diagnosis**: 
-  - Qua kiểm tra kỹ thuật (sử dụng curl/python kiểm tra độc lập API Key trong `.env` trực tiếp tới endpoint `https://token-plan-sgp.xiaomimimo.com/v1`), kết quả trả về `200 OK` chứng minh API Key của hệ thống cấu hình là hoàn toàn chính xác.
-  - Vấn đề nằm ở cơ chế truyền khóa: Giao diện sidebar của CineBot sử dụng input ẩn mật khẩu (`type="password"`) cho ô nhập key. Trình duyệt (Chrome/Edge) tự hiểu lầm đây là form đăng nhập nên tự động điền thông tin tài khoản/mật khẩu đang lưu vào ô này.
-  - Đoạn mã trong `static/index.js` lấy giá trị bị tự điền này gửi lên backend qua biến `apiKey`. Backend ưu tiên lấy `apiKey` tùy chỉnh từ giao diện trước rồi mới fallback về `.env`:
-    ```python
-    api_key = custom_api_key.strip() if custom_api_key else os.getenv("OPENAI_API_KEY", "")
-    ```
-    Hệ quả là khóa rác bị tự điền từ trình duyệt đã ghi đè lên khóa hợp lệ trong `.env`, dẫn tới lỗi xác thực 401 từ máy chủ.
+  - A standalone verification (using python/requests to the endpoint `https://token-plan-sgp.xiaomimimo.com/v1` with the key in `.env`) succeeded with an HTTP `200 OK` status, proving the environment-configured key was completely valid and active.
+  - The issue originated from credential autofill: The CineBot sidebar UI used hidden password inputs (`type="password"`) for API Key fields. Web browsers (e.g., Chrome/Edge) mistook these for standard login forms and automatically filled them with stored user passwords or outdated API keys.
+  - The frontend script `static/index.js` read this autofilled value and sent it to the backend. The backend preferred this custom API Key over the environment variable, overriding the valid key with the incorrect autofilled one, resulting in a 401 authentication error.
 
 - **Solution**: 
-  - Sửa đổi giao diện `static/index.html` để thêm thuộc tính `autocomplete="new-password"` vào cả hai trường nhập API Key để vô hiệu hóa hoàn toàn cơ chế tự điền của trình duyệt. 
-  - Hướng dẫn người dùng xóa sạch trường nhập khóa trên UI để backend tự động fallback một cách an toàn về biến môi trường trong file `.env`. Sau khi áp dụng giải pháp, Agent hoạt động hoàn hảo và không bao giờ gặp lại lỗi 401.
+  - Modified `static/index.html` by adding the `autocomplete="new-password"` attribute to both API Key password inputs to completely disable browser autofill.
+  - Instructed the user to clear the UI key fields to let the backend safely fall back to the `.env` variables. Following this fix, the agent connected successfully and never encountered the 401 error again.
 
 ---
 
@@ -80,11 +76,11 @@ Trong buổi thực hành Lab 3, tôi đã đóng góp các cải tiến kỹ th
 *Reflect on the reasoning capability difference.*
 
 1.  **Reasoning**: 
-    - Khối `Thought` đóng vai trò là "bảng nháp tư duy" (Chain of Thought) cực kỳ hiệu quả của Agent. So với Chatbot thông thường (chỉ đoán từ tiếp theo trực tiếp dựa trên prompt đầu vào), `Thought` giúp ReAct Agent định hình các bước cần làm một cách logic: phân tích xem yêu cầu của người dùng thiếu những thông tin gì, có cần gọi công cụ nào hỗ trợ hay không. Khả năng "nghĩ trước khi làm" này giúp Agent vượt trội khi thực hiện các tác vụ phức tạp gồm nhiều bước (Multi-step tasks).
+    - The `Thought` block acts as a highly effective Chain of Thought scratchpad for the ReAct Agent. Unlike a standard chatbot (which generates text directly based on probability), the `Thought` block enables the agent to decompose the request step-by-step: checking which parameters are missing, identifying the correct tool to call, and outlining intermediate goals. This makes the Agent significantly superior in handling multi-step cinema booking tasks.
 2.  **Reliability**: 
-    - ReAct Agent có thể hoạt động tệ hơn Chatbot khi gặp các lỗi về định dạng đầu ra (JSON Parser Error), ví dụ khi mô hình nhỏ (Phi-3) không tuân thủ cấu trúc ReAct thô, sinh ra mã XML bị lỗi cú pháp hoặc gọi các công cụ không có thực (Hallucinated Tool). Chatbot thông thường tuy có thể đưa ra thông tin bịa đặt (Hallucination) nhưng luôn có tốc độ phản hồi nhanh hơn và không bao giờ bị đứng (crash) do lỗi phân tích cú pháp code.
+    - The ReAct Agent can perform worse than a standard Chatbot if it encounters JSON/XML formatting errors (JSON Parser Errors), especially when smaller local models (like Phi-3) fail to adhere strictly to the ReAct output structure, hallucinate tool names, or output incomplete payloads. A standard chatbot is faster and never fails due to syntax parsing issues, although it is prone to hallucinating fictional transaction codes and showtimes.
 3.  **Observation**: 
-    - Phản hồi từ môi trường (`Observation`) là cầu nối quyết định hành vi tiếp theo của Agent. Ví dụ, nếu kết quả của `check_movie_schedule` trả về danh sách lịch chiếu trống, Agent sẽ đọc `Observation` đó và tự động dừng tiến trình (Stopping Condition), đưa ra câu trả lời tư vấn đổi ngày chiếu hoặc rạp cho khách hàng thay vì tiếp tục gọi tool `calculate_total_price` hay `book_movie_ticket` một cách vô nghĩa.
+    - Environment feedback (`Observation`) is the bridge that determines the Agent's next actions. For example, if `check_movie_schedule` returns an empty list of showtimes, the Agent reads this from the observation, treats it as a stopping condition, and suggests alternative showtimes or cinemas in the `Final Answer` instead of wasting tokens calling price calculation or booking tools.
 
 ---
 
@@ -93,10 +89,10 @@ Trong buổi thực hành Lab 3, tôi đã đóng góp các cải tiến kỹ th
 *How would you scale this for a production-level AI agent system?*
 
 - **Scalability**: 
-  - Để đưa hệ thống AI Agent này lên quy mô sản xuất thực tế (Production), cần chuyển các lời gọi công cụ đồng bộ (Synchronous Tool Calls) sang mô hình hàng đợi bất đồng bộ (Asynchronous Task Queue) sử dụng Celery kết hợp Redis/RabbitMQ. Điều này giúp hệ thống không bị nghẽn (non-blocking) khi xử lý hàng ngàn yêu cầu cùng lúc.
+  - To scale this cinema ticket booking agent system to production, we should transition synchronous tool calls to an asynchronous task queue (e.g., Celery with Redis/RabbitMQ). This prevents the web server from blocking during high-concurrency external database or payment queries.
 - **Safety**: 
-  - Thiết lập một mô hình ngôn ngữ giám sát (Supervisor/Guardrail LLM) hoặc sử dụng thư viện chuyên dụng như NeMo Guardrails để kiểm duyệt các hành động của Agent trước khi thực thi. Đồng thời áp dụng cơ chế xác thực OTP/Token của người dùng khi gọi công cụ thanh toán hoặc đặt chỗ thực tế nhằm ngăn chặn tấn công Prompt Injection (ví dụ khách hàng lừa Agent bỏ qua bước thanh toán).
+  - Implement a supervisor LLM or framework (such as NeMo Guardrails) to audit and validate agent actions before execution. Additionally, a user verification step (like OTP or transaction tokens) must be enforced for actual payment or reservation confirmations to mitigate Prompt Injection attacks.
 - **Performance**: 
-  - Khi số lượng công cụ trong tương lai tăng lên hàng chục hoặc hàng trăm (ví dụ: công cụ chọn ghế chi tiết, công cụ chọn đồ ăn đi kèm, gửi email, hoàn tiền...), cần sử dụng một Vector Database (như ChromaDB/Milvus) để thực hiện kỹ thuật truy xuất công cụ động (Dynamic Tool Retrieval) - chỉ đưa các công cụ thực sự liên quan vào system prompt để tối ưu hóa context window và giảm chi phí token.
+  - As the number of tools grows (e.g., detail seat selection, concession selection, food ordering, emailing, refunds), we should integrate a Vector Database (like ChromaDB or Milvus) to perform Dynamic Tool Retrieval. This will keep the system prompt clean, reduce token consumption, and avoid exceeding the context window of local models.
 
 ---
