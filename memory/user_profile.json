@@ -1,0 +1,34 @@
+{
+    "user_name": "Khách hàng",
+    "favorite_genres": [
+        "Sci-Fi",
+        "Action"
+    ],
+    "preferred_seat_type": "VIP",
+    "saved_vouchers": [
+        "CGV30",
+        "STUDENT"
+    ],
+    "past_bookings": [
+        {
+            "booking_id": "BK-882595",
+            "movie": "Dune: Part Two",
+            "showtime": "17:30",
+            "seats": [
+                "B4"
+            ],
+            "ticket_type": "standard",
+            "total_price": 56000
+        },
+        {
+            "booking_id": "BK-139807",
+            "movie": "Dune: Part Two",
+            "showtime": "20:30",
+            "seats": [
+                "A1"
+            ],
+            "ticket_type": "VIP",
+            "total_price": 84000
+        }
+    ]
+}
