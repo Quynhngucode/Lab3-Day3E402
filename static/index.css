@@ -205,7 +205,7 @@ code {
     top: 0;
     bottom: 0;
     left: 0;
-    width: 50%;
+    width: 33.33%;
     background: var(--gradient-primary);
     border-radius: 25px;
     z-index: 1;
@@ -213,8 +213,12 @@ code {
     transition: var(--transition-smooth);
 }
 
-.provider-switch:has(#btnLocal.active) .switch-glow {
+.provider-switch:has(#btnGoogle.active) .switch-glow {
     transform: translateX(100%);
+}
+
+.provider-switch:has(#btnLocal.active) .switch-glow {
+    transform: translateX(200%);
 }
 
 /* Config Panels */
@@ -1087,4 +1091,108 @@ code {
     .messages-container {
         padding: 20px;
     }
+}
+
+/* ==========================================================================
+   4. CHAT MODE & MODEL VISUAL BADGES & CONTROLS
+   ========================================================================== */
+
+/* Mode Switch (2 buttons) */
+.mode-switch-container {
+    background: rgba(0, 0, 0, 0.4);
+    padding: 4px;
+    border-radius: 30px;
+    border: 1px solid var(--border-color);
+    margin-bottom: 12px;
+    position: relative;
+    overflow: hidden;
+}
+
+.mode-switch {
+    display: flex;
+    position: relative;
+    width: 100%;
+}
+
+.mode-switch-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-secondary);
+    font-family: var(--font-header);
+    font-weight: 600;
+    font-size: 11px;
+    padding: 10px 0;
+    border-radius: 25px;
+    cursor: pointer;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: var(--transition-smooth);
+}
+
+.mode-switch-btn span {
+    font-size: 16px;
+}
+
+.mode-switch-btn.active {
+    color: #fff;
+}
+
+.mode-switch-glow {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 50%;
+    background: var(--gradient-primary);
+    border-radius: 25px;
+    z-index: 1;
+    box-shadow: 0 0 12px var(--primary-glow);
+    transition: var(--transition-smooth);
+}
+
+.mode-switch:has(#btnChatbot.active) .mode-switch-glow {
+    transform: translateX(100%);
+}
+
+/* Badges for active Mode & Model */
+.message-badge-container {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.mode-badge, .model-badge {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.mode-badge.agent {
+    background: rgba(99, 102, 241, 0.15);
+    color: #818cf8;
+    border-color: rgba(99, 102, 241, 0.3);
+    box-shadow: 0 0 8px rgba(99, 102, 241, 0.1);
+}
+
+.mode-badge.chatbot {
+    background: rgba(161, 161, 170, 0.1);
+    color: #a1a1aa;
+}
+
+.model-badge {
+    background: rgba(168, 85, 247, 0.12);
+    color: #c084fc;
+    border-color: rgba(168, 85, 247, 0.25);
 }

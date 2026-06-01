@@ -16,7 +16,7 @@ from src.core.llm_provider import LLMProvider
 from src.telemetry.logger import logger
 
 # ─────────────────────────────────────────────────────────────────────────────
-# MOCK TOOLS (Cinema Ticket Booking)
+# MOCK TOOLS (Cinema Ticket Booking - Unified Database)
 # ─────────────────────────────────────────────────────────────────────────────
 
 def check_movie_schedule(movie_name: str, cinema_name: str, date: str) -> dict:
@@ -25,17 +25,29 @@ def check_movie_schedule(movie_name: str, cinema_name: str, date: str) -> dict:
     movie / cinema / date combination.
     """
     movies = {
-        "default": {
-            "showtimes": ["10:00", "13:00", "16:30", "19:45", "22:00"],
-            "base_price": 85_000,
+        "doraemon": {
+            "showtimes": ["09:00", "11:30", "14:00", "16:30"],
+            "base_price": 75_000,
         },
         "avengers": {
             "showtimes": ["11:00", "14:30", "18:00", "21:30"],
             "base_price": 90_000,
         },
-        "doraemon": {
-            "showtimes": ["09:00", "11:30", "14:00", "16:30"],
-            "base_price": 75_000,
+        "dune": {
+            "showtimes": ["14:00", "17:30", "20:30"],
+            "base_price": 100_000,
+        },
+        "batman": {
+            "showtimes": ["13:00", "16:00", "19:00", "22:00"],
+            "base_price": 80_000,
+        },
+        "spider": {
+            "showtimes": ["10:30", "15:00", "18:00"],
+            "base_price": 110_000,
+        },
+        "default": {
+            "showtimes": ["10:00", "13:00", "16:30", "19:45", "22:00"],
+            "base_price": 85_000,
         },
     }
 
@@ -63,30 +75,59 @@ def calculate_total_price(
     quantity: int,
     seat_type: str,
     discount_code: str = "",
+    concession: str = "",
 ) -> dict:
     """
     Computes the final ticket cost.
     Seat multipliers: VIP × 1.5, Premium × 1.3, Standard × 1.0
-    Discount codes: SUMMER20 → 20%, STUDENT10 → 10%, AI20K → 15%
+    Discount codes: SUMMER20 → 20%, STUDENT10 → 10%, AI20K → 15%, CGV30 → 30%, STUDENT → 15%
+    Fixed discount: HELLOSUMMER → -20,000 VND
+    Concessions: popcorn_combo_1 → 50,000 VND, popcorn_combo_2 → 80,000 VND
     """
     multipliers = {
         "vip": 1.5,
         "premium": 1.3,
         "standard": 1.0,
     }
+    
+    # Percentage discounts
     discounts = {
         "SUMMER20": 0.20,
         "STUDENT10": 0.10,
         "AI20K": 0.15,
+        "CGV30": 0.30,
+        "STUDENT": 0.15,
+    }
+    
+    # Concessions
+    concessions_map = {
+        "popcorn_combo_1": 50_000,
+        "popcorn_combo_2": 80_000,
     }
 
     seat_key = seat_type.lower()
     multiplier = multipliers.get(seat_key, 1.0)
 
     subtotal = base_price * multiplier * quantity
-    discount_rate = discounts.get(discount_code.upper(), 0.0)
-    discount_amount = subtotal * discount_rate
-    total = subtotal - discount_amount
+    
+    # Calculate discount
+    discount_rate = 0.0
+    discount_amount = 0.0
+    fixed_discount = 0.0
+    
+    discount_code_upper = discount_code.upper()
+    if discount_code_upper in discounts:
+        discount_rate = discounts[discount_code_upper]
+        discount_amount = subtotal * discount_rate
+    elif discount_code_upper == "HELLOSUMMER":
+        fixed_discount = 20_000
+        discount_amount = fixed_discount
+        
+    concession_cost = 0.0
+    if concession:
+        concession_cost = concessions_map.get(concession.lower(), 0.0)
+
+    total = subtotal - discount_amount + concession_cost
 
     return {
         "status": "success",
@@ -96,8 +137,10 @@ def calculate_total_price(
         "quantity": quantity,
         "subtotal": subtotal,
         "discount_code": discount_code or "none",
-        "discount_rate": f"{int(discount_rate * 100)}%",
+        "discount_rate": f"{int(discount_rate * 100)}%" if discount_rate > 0 else "0%",
         "discount_amount": discount_amount,
+        "concession": concession or "none",
+        "concession_cost": concession_cost,
         "total_price": total,
         "currency": "VND",
         "formatted_total": f"{total:,.0f} VND",
@@ -293,15 +336,77 @@ OR you finish with:
 
 Final Answer: <your complete, friendly answer in Vietnamese>
 
-Rules:
-- NEVER skip the Action Input.
-- Action Input MUST be a single raw JSON object, no markdown fences, no extra text.
-- Use only the exact tool names listed below.
-- Do NOT invent data; use only what was returned in Observations.
-- Respond in Vietnamese for the Final Answer.
+CRITICAL RULES:
+
+1. MANDATORY TOOL ORDER:
+   You must call the tools in this exact order:
+   - Tool 1: check_movie_schedule
+     * Purpose: fetch showtimes and base price for a movie at a cinema and date.
+     * Required inputs: movie_name, cinema_name, date
+   - Tool 2: calculate_total_price
+     * Purpose: compute final cost based on base price, quantity, seat type, and discount.
+     * Required inputs: base_price, quantity, seat_type, discount_code (optional)
+   - Tool 3: book_movie_ticket
+     * Purpose: finalize booking after user confirmation.
+     * Required inputs: movie_name, cinema_name, showtime, seat_type, quantity, total_price
+
+2. BEHAVIOR RULES & GUARDRAILS:
+   - Ask for missing details before calling a tool. If any slot (movie_name, cinema_name, date, showtime, seat_type, quantity) is missing, ask the user for it.
+   - If multiple showtimes are returned by check_movie_schedule, ask the user to choose one.
+   - If discount code is not provided by the user, pass an empty string "" or "none". Do NOT hallucinate vouchers.
+   - After calculating the price, you MUST ask for confirmation before booking (e.g. "Tổng tiền là X, bạn có đồng ý xác nhận đặt vé không?").
+   - If there is no availability (empty showtimes), propose another date or cinema and stop.
+   - Keep responses concise and focused on booking.
+   - You must NEVER invent booking confirmation codes (like BK...) or mock prices. Always query them via tools.
+
+3. REQUIRED SLOTS:
+   - movie_name
+   - cinema_name
+   - date
+   - showtime
+   - seat_type
+   - quantity
+   - discount_code (optional)
+
+4. FAILURE HANDLING:
+   - If check_movie_schedule returns empty, ask the user to try a different date or cinema.
+   - If calculate_total_price fails, restate inputs and ask the user to verify.
+   - If booking fails, apologize and offer to retry or adjust details.
+
+5. VIETNAMESE RESPONSE:
+   - The Final Answer must always be written in a warm, polite, and helpful Vietnamese.
 
 You have access to these tools:
 {tool_descriptions}
+
+EXAMPLE FLOW (ReAct Multi-turn Execution):
+
+Turn 1:
+User: "Book 2 VIP tickets for Dune at Galaxy Cinema tomorrow."
+Thought: The user wants to book 2 VIP tickets for Dune at Galaxy Cinema tomorrow. I have the movie_name ("Dune"), cinema_name ("Galaxy Cinema"), date ("tomorrow"), seat_type ("VIP"), and quantity (2). However, showtime is missing. According to the rules, I should check the schedule first to see what showtimes are available before asking.
+Action: check_movie_schedule
+Action Input: {{"movie_name": "Dune", "cinema_name": "Galaxy Cinema", "date": "2026-06-02"}}
+Observation: {{"status": "success", "movie_name": "Dune", "cinema_name": "Galaxy Cinema", "date": "2026-06-02", "available_showtimes": ["18:30", "20:45"], "base_price": 80000, "currency": "VND"}}
+Thought: Available showtimes are 18:30 and 20:45. I need the user to select one showtime before calculating price or booking.
+Final Answer: Rạp Galaxy Cinema ngày mai có các suất chiếu phim Dune lúc 18:30 và 20:45. Giá vé cơ bản là 80.000 VNĐ. Bạn vui lòng chọn suất chiếu muốn đặt nhé!
+
+Turn 2:
+User: "Chọn suất chiếu 20:45 nhé."
+Thought: The user selected 20:45. I now have the showtime ("20:45"). I can calculate the price. Let me ask if they have a discount code or proceed to calculation directly.
+Action: calculate_total_price
+Action Input: {{"base_price": 80000, "quantity": 2, "seat_type": "VIP", "discount_code": ""}}
+Observation: {{"status": "success", "base_price": 80000, "quantity": 2, "seat_type": "VIP", "total_price": 240000, "formatted_total": "240,000 VND"}}
+Thought: Total price is 240,000 VND. According to Behavior Rules, I must ask for user confirmation before executing book_movie_ticket.
+Final Answer: Tổng chi phí cho 2 vé VIP phim Dune lúc 20:45 tại Galaxy Cinema là 240.000 VNĐ. Bạn có xác nhận muốn đặt vé không?
+
+Turn 3:
+User: "Đồng ý đặt vé."
+Thought: The user confirmed booking. I can proceed to finalize booking.
+Action: book_movie_ticket
+Action Input: {{"movie_name": "Dune", "cinema_name": "Galaxy Cinema", "showtime": "20:45", "seat_type": "VIP", "quantity": 2, "total_price": 240000}}
+Observation: {{"status": "success", "booking_confirmed": true, "booking_id": "BK90827364", "message": "Đặt vé thành công!"}}
+Thought: Booking is confirmed. I can present the final answer with booking code BK90827364.
+Final Answer: Đặt vé thành công! Mã đặt chỗ của bạn là BK90827364. Vui lòng đến rạp trước 15 phút để nhận vé. Chúc bạn có một buổi xem phim tuyệt vời!
 """
 
     def run(self, user_input: str) -> str:
@@ -324,6 +429,16 @@ You have access to these tools:
         
         total_prompt_tokens = 0
         total_completion_tokens = 0
+        
+        # Telemetry Structured Error Metrics
+        error_metrics = {
+            "JSON_PARSER_ERROR": 0,
+            "HALLUCINATED_TOOL_ERROR": 0,
+            "WRONG_TOOL_ORDER_ERROR": 0,
+            "MISSING_PARAMETERS_ERROR": 0
+        }
+        
+        tools_called = []
         
         for step in range(1, self.max_steps + 1):
             # Call the LLM provider
@@ -363,35 +478,55 @@ You have access to these tools:
             }
             
             if action_name is None:
+                error_metrics["JSON_PARSER_ERROR"] += 1
                 observation = (
                     "ERROR: No Action or Final Answer found in your response. "
                     "Please follow the ReAct format exactly:\n"
                     "Thought: ...\nAction: <tool_name>\nAction Input: {\"key\": \"value\"}"
                 )
             elif params is None:
+                error_metrics["JSON_PARSER_ERROR"] += 1
                 observation = (
                     "ERROR: Could not parse Action Input as valid JSON. "
                     "Please output a single raw JSON object after 'Action Input:'. "
                     "Example: {\"movie_name\": \"Doraemon\", \"cinema_name\": \"Beta\", \"date\": \"2026-06-01\"}"
                 )
             elif action_name not in MOCK_TOOLS_MAP:
+                error_metrics["HALLUCINATED_TOOL_ERROR"] += 1
                 observation = (
                     f"ERROR: Unknown tool '{action_name}'. "
                     f"Available tools: {', '.join(MOCK_TOOLS_MAP.keys())}"
                 )
             else:
-                # Execute tool
-                tool_fn = MOCK_TOOLS_MAP[action_name]
-                try:
-                    result_data = tool_fn(**params)
-                    observation = json.dumps(result_data, ensure_ascii=False, indent=2)
-                    logger.log_event("TOOL_EXECUTION", {"tool": action_name, "params": params, "status": "success"})
-                except TypeError as e:
-                    observation = f"ERROR calling {action_name}: {e}. Params received: {params}"
-                    logger.log_event("TOOL_EXECUTION", {"tool": action_name, "params": params, "status": "type_error", "error": str(e)})
-                except Exception as e:
-                    observation = f"UNEXPECTED ERROR in {action_name}: {e}"
-                    logger.log_event("TOOL_EXECUTION", {"tool": action_name, "params": params, "status": "error", "error": str(e)})
+                # Sequence verification guard checking
+                wrong_order = False
+                if action_name == "calculate_total_price" and "check_movie_schedule" not in tools_called:
+                    wrong_order = True
+                elif action_name == "book_movie_ticket" and "calculate_total_price" not in tools_called:
+                    wrong_order = True
+                
+                if wrong_order:
+                    error_metrics["WRONG_TOOL_ORDER_ERROR"] += 1
+                    observation = (
+                        f"ERROR: Cannot execute {action_name} due to incorrect tool order sequence constraint. "
+                        f"You must run check_movie_schedule before calculate_total_price, and calculate_total_price before book_movie_ticket."
+                    )
+                    print(f"[WARN] Sequence violation detected in LLM Action: {action_name}")
+                else:
+                    # Execute tool
+                    tool_fn = MOCK_TOOLS_MAP[action_name]
+                    try:
+                        result_data = tool_fn(**params)
+                        observation = json.dumps(result_data, ensure_ascii=False, indent=2)
+                        tools_called.append(action_name)
+                        logger.log_event("TOOL_EXECUTION", {"tool": action_name, "params": params, "status": "success"})
+                    except TypeError as e:
+                        error_metrics["MISSING_PARAMETERS_ERROR"] += 1
+                        observation = f"ERROR calling {action_name}: {e}. Params received: {params}"
+                        logger.log_event("TOOL_EXECUTION", {"tool": action_name, "params": params, "status": "type_error", "error": str(e)})
+                    except Exception as e:
+                        observation = f"UNEXPECTED ERROR in {action_name}: {e}"
+                        logger.log_event("TOOL_EXECUTION", {"tool": action_name, "params": params, "status": "error", "error": str(e)})
             
             step_record["observation"] = observation
             steps_trace.append(step_record)
@@ -418,12 +553,35 @@ You have access to these tools:
             total_prompt_tokens += usage.get("prompt_tokens", 0)
             total_completion_tokens += usage.get("completion_tokens", 0)
             
+        # Component 4: Runtime verify guard to prevent hallucinating booking confirmations
+        # If the final answer contains booking success terms, but book_movie_ticket was not called, override it
+        fake_success = False
+        success_terms = ["đặt thành công", "mã đặt chỗ", "mã xác nhận", "mã vé", "booking_id", "booking id", "đã đặt chỗ", "đã đặt vé"]
+        final_answer_lower = final_answer.lower()
+        if any(term in final_answer_lower for term in success_terms):
+            if "book_movie_ticket" not in tools_called:
+                fake_success = True
+                
+        if fake_success:
+            print("[WARN] Overriding hallucinated booking final answer!")
+            final_answer = "Xin lỗi, tôi không thể hoàn tất đặt vé do thiếu thông tin rạp chiếu, suất chiếu hoặc quá trình gọi công cụ đặt vé gặp lỗi. Vui lòng cung cấp đầy đủ thông tin hoặc thực hiện lại yêu cầu."
+            steps_trace.append({
+                "step": len(steps_trace) + 1,
+                "thought": "CẢNH BÁO CODE-LEVEL: Model đã tự ý bịa thông tin đặt vé khi chưa gọi book_movie_ticket. Ghi đè câu trả lời an toàn.",
+                "action": None,
+                "action_input": None,
+                "observation": None,
+                "final_answer": final_answer
+            })
+            error_metrics["WRONG_TOOL_ORDER_ERROR"] += 1
+            
         latency_ms = int((time.time() - start_time) * 1000)
         logger.log_event("AGENT_END", {"steps": len(steps_trace), "latency_ms": latency_ms})
         
         return {
             "final_answer": final_answer,
             "steps": steps_trace,
+            "error_metrics": error_metrics,
             "metrics": {
                 "total_steps": len(steps_trace),
                 "latency_ms": latency_ms,

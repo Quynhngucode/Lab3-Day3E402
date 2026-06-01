@@ -5,17 +5,32 @@
 document.addEventListener('DOMContentLoaded', () => {
 
     // State Variables
-    let currentProvider = 'google'; // 'google' or 'local'
+    let currentProvider = 'mimo';   // 'mimo', 'google', or 'local'
+    let currentMode = 'agent';      // 'agent' or 'chatbot'
     let isGenerating = false;
 
     // DOM Elements
+    const btnMimo = document.getElementById('btnMimo');
     const btnGoogle = document.getElementById('btnGoogle');
     const btnLocal = document.getElementById('btnLocal');
+    
+    const mimoConfig = document.getElementById('mimoConfig');
     const googleConfig = document.getElementById('googleConfig');
     const localConfig = document.getElementById('localConfig');
+    
+    const mimoApiKeyInput = document.getElementById('mimoApiKeyInput');
     const apiKeyInput = document.getElementById('apiKeyInput');
+    
+    const toggleMimoApiKeyVisible = document.getElementById('toggleMimoApiKeyVisible');
+    const mimoEyeIcon = document.getElementById('mimoEyeIcon');
+    
     const toggleApiKeyVisible = document.getElementById('toggleApiKeyVisible');
     const eyeIcon = document.getElementById('eyeIcon');
+    
+    const btnAgent = document.getElementById('btnAgent');
+    const btnChatbot = document.getElementById('btnChatbot');
+    const modeHelpText = document.getElementById('modeHelpText');
+    
     const presetBtns = document.querySelectorAll('.preset-btn');
 
     const telemetryLatency = document.getElementById('telemetryLatency');
@@ -31,32 +46,75 @@ document.addEventListener('DOMContentLoaded', () => {
     const serverStatus = document.getElementById('serverStatus');
 
     // ─────────────────────────────────────────────────────────────────────────────
-    // 1. PROVIDER TOGGLE LOGIC
+    // 1. PROVIDER & MODE TOGGLE LOGIC
     // ─────────────────────────────────────────────────────────────────────────────
 
     function switchProvider(provider) {
         if (isGenerating) return;
         currentProvider = provider;
 
-        if (provider === 'google') {
+        // Reset active states
+        btnMimo.classList.remove('active');
+        btnGoogle.classList.remove('active');
+        btnLocal.classList.remove('active');
+        
+        mimoConfig.classList.remove('active');
+        googleConfig.classList.remove('active');
+        localConfig.classList.remove('active');
+
+        if (provider === 'mimo') {
+            btnMimo.classList.add('active');
+            mimoConfig.classList.add('active');
+            currentModelDesc.textContent = 'Sử dụng mô hình MiMo-v2.5-Pro Token Plan qua cổng Singapore';
+        } else if (provider === 'google') {
             btnGoogle.classList.add('active');
-            btnLocal.classList.remove('active');
             googleConfig.classList.add('active');
-            localConfig.classList.remove('active');
-            currentModelDesc.textContent = 'Sử dụng Google Gemini 3.5 Flash thông qua API';
+            currentModelDesc.textContent = 'Sử dụng Google gemini-3-flash-preview thông qua API';
         } else {
-            btnGoogle.classList.remove('active');
             btnLocal.classList.add('active');
-            googleConfig.classList.remove('active');
             localConfig.classList.add('active');
             currentModelDesc.textContent = 'Sử dụng Phi-3-mini GGUF chạy cục bộ (Offline CPU)';
         }
     }
 
+    function switchMode(mode) {
+        if (isGenerating) return;
+        currentMode = mode;
+
+        if (mode === 'agent') {
+            btnAgent.classList.add('active');
+            btnChatbot.classList.remove('active');
+            modeHelpText.innerHTML = '<strong>ReAct Agent:</strong> Có khả năng sử dụng các công cụ rạp phim để tra cứu và đặt vé chính xác.';
+        } else {
+            btnAgent.classList.remove('active');
+            btnChatbot.classList.add('active');
+            modeHelpText.innerHTML = '<strong>Chatbot Baseline:</strong> Chatbot thông thường không dùng công cụ (Dễ bịa thông tin đặt vé/giá tiền).';
+        }
+    }
+
+    btnMimo.addEventListener('click', () => switchProvider('mimo'));
     btnGoogle.addEventListener('click', () => switchProvider('google'));
     btnLocal.addEventListener('click', () => switchProvider('local'));
+    
+    btnAgent.addEventListener('click', () => switchMode('agent'));
+    btnChatbot.addEventListener('click', () => switchMode('chatbot'));
 
-    // Toggle API Key Visibility (Password / Text)
+    // Set initial description correctly for mimo
+    currentModelDesc.textContent = 'Sử dụng mô hình MiMo-v2.5-Pro Token Plan qua cổng Singapore';
+
+    // Toggle API Key Visibility (MiMo)
+    toggleMimoApiKeyVisible.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (mimoApiKeyInput.type === 'password') {
+            mimoApiKeyInput.type = 'text';
+            mimoEyeIcon.textContent = 'visibility';
+        } else {
+            mimoApiKeyInput.type = 'password';
+            mimoEyeIcon.textContent = 'visibility_off';
+        }
+    });
+
+    // Toggle API Key Visibility (Gemini)
     toggleApiKeyVisible.addEventListener('click', (e) => {
         e.preventDefault();
         if (apiKeyInput.type === 'password') {
@@ -149,11 +207,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function createGeneratingBubble() {
         const loadingDiv = document.createElement('div');
         loadingDiv.className = 'message bot-message loading-bubble';
-        const modelBadge = currentProvider === 'google' ? 'GEMINI 3.5' : 'LOCAL PHI-3';
+        
+        const modeBadge = currentMode === 'agent' ? 'REACT AGENT' : 'CHATBOT BASELINE';
+        const providerName = currentProvider === 'mimo' ? 'MiMo-v2.5-Pro' : (currentProvider === 'google' ? 'Gemini 3.5' : 'Local Phi-3');
 
         loadingDiv.innerHTML = `
             <div class="bubble generating-bubble">
-                <span class="generating-badge">${modelBadge}</span>
+                <span class="generating-badge" style="background: var(--gradient-primary); color: #fff; padding: 2px 8px; border-radius: 20px; font-size: 9px; font-weight: 700; margin-bottom: 6px; display: inline-block;">${modeBadge} // ${providerName}</span>
                 <div class="typing-dots">
                     <span></span>
                     <span></span>
@@ -186,10 +246,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const loadingBubble = createGeneratingBubble();
 
         try {
+            let activeApiKey = '';
+            if (currentProvider === 'mimo') {
+                activeApiKey = mimoApiKeyInput.value.trim();
+            } else if (currentProvider === 'google') {
+                activeApiKey = apiKeyInput.value.trim();
+            }
+
             const bodyPayload = {
                 message: message,
                 provider: currentProvider,
-                apiKey: apiKeyInput.value.trim()
+                apiKey: activeApiKey,
+                mode: currentMode
             };
 
             const response = await fetch('/api/chat', {
@@ -259,12 +327,25 @@ document.addEventListener('DOMContentLoaded', () => {
         const bubble = document.createElement('div');
         bubble.className = 'bubble';
 
-        // A. Primary Answer text
+        // A. Primary Badges Header (UX clear indicators)
+        const badgeContainer = document.createElement('div');
+        badgeContainer.className = 'message-badge-container';
+        
+        const modeBadgeText = currentMode === 'agent' ? 'REACT AGENT' : 'CHATBOT BASELINE';
+        const providerName = currentProvider === 'mimo' ? 'MiMo-v2.5-Pro' : (currentProvider === 'google' ? 'Gemini 3.5' : 'Local Phi-3');
+        
+        badgeContainer.innerHTML = `
+            <span class="mode-badge ${currentMode}">${modeBadgeText}</span>
+            <span class="model-badge">${providerName}</span>
+        `;
+        bubble.appendChild(badgeContainer);
+
+        // B. Primary Answer text
         const answerText = document.createElement('p');
         answerText.innerHTML = formatMarkdown(data.final_answer);
         bubble.appendChild(answerText);
 
-        // B. ReAct thought trace drawer (if steps are present)
+        // C. ReAct thought trace drawer (if steps are present)
         if (data.steps && data.steps.length > 0) {
             const traceContainer = createReActTraceDrawer(data.steps, data.metrics);
             bubble.appendChild(traceContainer);

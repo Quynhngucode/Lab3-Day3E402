@@ -37,8 +37,11 @@
                 <div class="provider-switch-container">
                     <div class="provider-switch" id="providerToggle">
                         <div class="switch-glow"></div>
-                        <button class="switch-btn active" id="btnGoogle" data-provider="google">
-                            <span class="material-symbols-outlined">cloud</span> Gemini Cloud
+                        <button class="switch-btn active" id="btnMimo" data-provider="mimo">
+                            <span class="material-symbols-outlined">api</span> MiMo v2.5
+                        </button>
+                        <button class="switch-btn" id="btnGoogle" data-provider="google">
+                            <span class="material-symbols-outlined">cloud</span> Gemini
                         </button>
                         <button class="switch-btn" id="btnLocal" data-provider="local">
                             <span class="material-symbols-outlined">dns</span> Phi-3 Local
@@ -46,12 +49,28 @@
                     </div>
                 </div>
 
+                <!-- MiMo Config Panel -->
+                <div class="config-panel active" id="mimoConfig">
+                    <label for="mimoApiKeyInput" class="input-label">MiMo Token Plan API Key</label>
+                    <div class="api-key-wrapper">
+                        <span class="material-symbols-outlined input-icon">key</span>
+                        <input type="password" id="mimoApiKeyInput" placeholder="Nhập MiMo API Key..."
+                            autocomplete="new-password" />
+                        <button id="toggleMimoApiKeyVisible" class="toggle-visibility-btn">
+                            <span class="material-symbols-outlined" id="mimoEyeIcon">visibility_off</span>
+                        </button>
+                    </div>
+                    <span class="help-text">Sử dụng API Key <code>OPENAI_API_KEY</code> trong tệp tin <code>.env</code>
+                        nếu bỏ trống.</span>
+                </div>
+
                 <!-- Gemini Config Panel -->
-                <div class="config-panel active" id="googleConfig">
+                <div class="config-panel" id="googleConfig">
                     <label for="apiKeyInput" class="input-label">Gemini API Key</label>
                     <div class="api-key-wrapper">
                         <span class="material-symbols-outlined input-icon">key</span>
-                        <input type="password" id="apiKeyInput" placeholder="Nhập API Key của bạn..." />
+                        <input type="password" id="apiKeyInput" placeholder="Nhập Gemini API Key..."
+                            autocomplete="new-password" />
                         <button id="toggleApiKeyVisible" class="toggle-visibility-btn">
                             <span class="material-symbols-outlined" id="eyeIcon">visibility_off</span>
                         </button>
@@ -76,6 +95,26 @@
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <!-- CHAT MODE SELECTION -->
+            <div class="sidebar-section">
+                <h3 class="section-title">Chế độ hoạt động</h3>
+                <div class="mode-switch-container">
+                    <div class="mode-switch" id="modeToggle">
+                        <div class="mode-switch-glow"></div>
+                        <button class="mode-switch-btn active" id="btnAgent" data-mode="agent">
+                            <span class="material-symbols-outlined">psychology</span> ReAct Agent
+                        </button>
+                        <button class="mode-switch-btn" id="btnChatbot" data-mode="chatbot">
+                            <span class="material-symbols-outlined">forum</span> Chatbot
+                        </button>
+                    </div>
+                </div>
+                <span class="help-text" id="modeHelpText">
+                    <strong>ReAct Agent:</strong> Có khả năng sử dụng các công cụ rạp phim để tra cứu và đặt vé chính
+                    xác.
+                </span>
             </div>
 
             <!-- Quick Preset Queries -->
