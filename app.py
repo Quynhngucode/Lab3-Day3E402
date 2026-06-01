@@ -41,9 +41,9 @@ def get_local_provider():
     return LOCAL_PROVIDER_CACHE
 
 
-def execute_agent_chat(message: str, provider_type: str, custom_api_key: str = "") -> dict:
+def execute_agent_chat(message: str, provider_type: str, custom_api_key: str = "", mode: str = "agent") -> dict:
     """
-    Initializes the requested provider, sets up ReActAgent, and runs the agent loop,
+    Initializes the requested provider, sets up ReActAgent, and runs the agent loop or chatbot baseline,
     capturing full traces and metrics.
     """
     try:
@@ -79,6 +79,36 @@ def execute_agent_chat(message: str, provider_type: str, custom_api_key: str = "
             model_name = os.getenv("DEFAULT_MODEL", "gemini-3-flash-preview")
             provider = GeminiProvider(model_name=model_name, api_key=api_key)
         
+        if mode == "chatbot":
+            CHATBOT_SYSTEM_PROMPT = """You are a helpful cinema booking customer assistant. 
+You do not have access to any external databases or ticket booking tools. 
+Answer customer inquiries in friendly Vietnamese to the best of your ability. 
+If they ask to book tickets or check showtimes, you must explain that you are a standard chatbot 
+and do not have access to tools, so you cannot check schedules, calculate prices, or book tickets."""
+            
+            start_time = time.time()
+            res = provider.generate(message, system_prompt=CHATBOT_SYSTEM_PROMPT)
+            latency_ms = int((time.time() - start_time) * 1000)
+            
+            return {
+                "final_answer": res["content"],
+                "steps": [],
+                "error_metrics": {
+                    "JSON_PARSER_ERROR": 0,
+                    "HALLUCINATED_TOOL_ERROR": 0,
+                    "WRONG_TOOL_ORDER_ERROR": 0,
+                    "MISSING_PARAMETERS_ERROR": 0
+                },
+                "metrics": {
+                    "total_steps": 0,
+                    "latency_ms": latency_ms,
+                    "prompt_tokens": res.get("usage", {}).get("prompt_tokens", 0),
+                    "completion_tokens": res.get("usage", {}).get("completion_tokens", 0),
+                    "total_tokens": res.get("usage", {}).get("total_tokens", 0)
+                },
+                "success": True
+            }
+
         # Instantiate ReActAgent with the loaded provider
         agent = ReActAgent(llm=provider, max_steps=5)
         
@@ -183,11 +213,12 @@ class ChatbotHTTPRequestHandler(BaseHTTPRequestHandler):
         try:
             payload = json.loads(post_data.decode('utf-8'))
             message = payload.get('message', '')
-            provider = payload.get('provider', 'google')  # 'google' or 'local'
+            provider = payload.get('provider', 'google')  # 'google', 'local', or 'mimo'
             api_key = payload.get('apiKey', '')
+            mode = payload.get('mode', 'agent')           # 'agent' or 'chatbot'
             
-            print(f"\n[*] Processing message via {provider.upper()} provider...")
-            response_data = execute_agent_chat(message, provider, api_key)
+            print(f"\n[*] Processing message via {provider.upper()} provider in {mode.upper()} mode...")
+            response_data = execute_agent_chat(message, provider, api_key, mode)
             
             response_bytes = json.dumps(response_data, ensure_ascii=False).encode('utf-8')
             
